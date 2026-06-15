@@ -80,6 +80,8 @@ export const SignupScreen = ({ navigation }) => {
       newErrors.password = 'Password is required.';
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters.';
+    } else if (getPasswordStrength(password) === 'Weak') {
+      newErrors.password = 'Password is too weak. Add letters, mix cases, or use special characters.';
     }
     
     setErrors(newErrors);
