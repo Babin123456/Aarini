@@ -29,11 +29,37 @@ export const SignupScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState(null);
   const [age, setAge] = useState('');
   const [cycleLength, setCycleLength] = useState('28'); // Default standard average cycle
   
   // Error states
   const [errors, setErrors] = useState({});
+
+  const getPasswordStrength = (pass) => {
+    if (!pass) return null;
+    if (pass.length < 6) return 'Weak';
+    
+    const onlyDigits = /^\d+$/.test(pass);
+    if (onlyDigits) return 'Weak';
+    
+    const hasUppercase = /[A-Z]/.test(pass);
+    const hasLowercase = /[a-z]/.test(pass);
+    const hasNumberOrSpecial = /[\d\W_]/.test(pass);
+    
+    if (pass.length >= 8 && hasUppercase && hasLowercase && hasNumberOrSpecial) {
+      return 'Strong';
+    }
+    
+    const hasLetters = /[a-zA-Z]/.test(pass);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+    
+    if (pass.length >= 6 && hasLetters && !hasSpecial && pass.length < 10) {
+      return 'Medium';
+    }
+    
+    return 'Medium';
+  };
 
   // Real-time validators
   const handleValidateStep1 = () => {
@@ -54,6 +80,8 @@ export const SignupScreen = ({ navigation }) => {
       newErrors.password = 'Password is required.';
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters.';
+    } else if (getPasswordStrength(password) === 'Weak') {
+      newErrors.password = 'Password is too weak. Add letters, mix cases, or use special characters.';
     }
     
     setErrors(newErrors);
@@ -179,12 +207,49 @@ export const SignupScreen = ({ navigation }) => {
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
+                    setPasswordStrength(getPasswordStrength(text));
                     if (errors.password) setErrors({...errors, password: null});
                   }}
                   placeholder="Minimum 6 characters"
                   secureTextEntry={true}
                   error={errors.password}
                 />
+
+                {passwordStrength && (
+                  <View style={{ marginTop: 4, marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                      <View style={{ 
+                        flex: 1, 
+                        height: 4, 
+                        borderRadius: 2, 
+                        marginHorizontal: 2, 
+                        backgroundColor: passwordStrength === 'Weak' ? colors.errorDark : (passwordStrength === 'Medium' ? '#F59E0B' : colors.successDark) 
+                      }} />
+                      <View style={{ 
+                        flex: 1, 
+                        height: 4, 
+                        borderRadius: 2, 
+                        marginHorizontal: 2, 
+                        backgroundColor: passwordStrength === 'Medium' ? '#F59E0B' : (passwordStrength === 'Strong' ? colors.successDark : colors.border) 
+                      }} />
+                      <View style={{ 
+                        flex: 1, 
+                        height: 4, 
+                        borderRadius: 2, 
+                        marginHorizontal: 2, 
+                        backgroundColor: passwordStrength === 'Strong' ? colors.successDark : colors.border 
+                      }} />
+                    </View>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '600', 
+                      marginHorizontal: 2,
+                      color: passwordStrength === 'Weak' ? colors.errorDark : (passwordStrength === 'Medium' ? '#F59E0B' : colors.successDark) 
+                    }}>
+                      {passwordStrength}
+                    </Text>
+                  </View>
+                )}
 
                 <Button
                   title="Next Step"
