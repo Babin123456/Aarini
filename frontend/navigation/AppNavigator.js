@@ -9,6 +9,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { CycleTrackerScreen } from '../screens/CycleTrackerScreen';
+import { MoodTrackingScreen } from '../screens/MoodTrackingScreen';
 
 const Stack = createStackNavigator();
 
@@ -24,6 +25,7 @@ const AuthStack = () => (
 const AppStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Dashboard" component={CycleTrackerScreen} />
+    <Stack.Screen name="MoodTracking" component={MoodTrackingScreen} />
   </Stack.Navigator>
 );
 
