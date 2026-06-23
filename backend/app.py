@@ -1,8 +1,11 @@
 import os
 import logging
+from datetime import date
+from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from cycle_prediction import parse_date, predict_cycle
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -13,6 +16,7 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing for mobile client accessibility
+mock_cycles = {}
 
 # Placeholder for Firebase Admin SDK initialization
 firebase_initialized = False
@@ -48,6 +52,34 @@ try:
         )
 except Exception as e:
     logger.error(f"Error initializing Firebase Admin: {str(e)}")
+
+
+def authenticated_user(handler):
+    """Resolve the user from a verified Firebase token in production."""
+    @wraps(handler)
+    def wrapped(*args, **kwargs):
+        authorization = request.headers.get("Authorization", "")
+        token = authorization.removeprefix("Bearer ").strip()
+
+        if firebase_initialized:
+            if not token:
+                return jsonify({"error": "Authentication required"}), 401
+            try:
+                request.user_id = auth.verify_id_token(token)["uid"]
+            except Exception:
+                return jsonify({"error": "Invalid or expired authentication token"}), 401
+        else:
+            # Development mode keeps data isolated by the mock profile id.
+            payload = request.get_json(silent=True) or {}
+            request.user_id = (
+                request.headers.get("X-User-Id")
+                or payload.get("uid")
+                or request.args.get("uid")
+                or "mock_user_123"
+            )
+        return handler(*args, **kwargs)
+
+    return wrapped
 
 # Health Check Route
 @app.route("/", methods=["GET"])
@@ -158,34 +190,52 @@ def login():
 # ----------------- PERIOD TRACKING ENDPOINTS -----------------
 
 @app.route("/add-cycle", methods=["POST"])
+@authenticated_user
 def add_cycle():
     """
     Records a cycle entry.
     Expected Payload: { uid, startDate, endDate, flowIntensity, symptoms, mood }
     """
     data = request.get_json() or {}
-    uid = data.get("uid", "mock_user_123")
+    uid = request.user_id
     start_date = data.get("startDate")
     end_date = data.get("endDate")
     flow_intensity = data.get("flowIntensity")
     symptoms = data.get("symptoms", [])
     mood = data.get("mood")
 
-    if not start_date:
-        return jsonify({"error": "Missing cycle startDate"}), 400
+    if not start_date or not end_date:
+        return jsonify({"error": "startDate and endDate are required"}), 400
+
+    try:
+        parsed_start = parse_date(start_date)
+        parsed_end = parse_date(end_date)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if parsed_end < parsed_start:
+        return jsonify({"error": "endDate cannot be before startDate"}), 400
+    if (parsed_end - parsed_start).days > 13:
+        return jsonify({"error": "A period entry cannot be longer than 14 days"}), 400
+    if parsed_start > date.today():
+        return jsonify({"error": "startDate cannot be in the future"}), 400
 
     logger.info(f"Adding cycle for user: {uid}")
 
     if not firebase_initialized:
+        cycle = {
+            "id": f"mock_cycle_{len(mock_cycles.get(uid, [])) + 1}",
+            "startDate": start_date,
+            "endDate": end_date,
+            "flowIntensity": flow_intensity,
+            "symptoms": symptoms,
+            "mood": mood,
+        }
+        user_cycles = mock_cycles.setdefault(uid, [])
+        user_cycles.append(cycle)
         return jsonify({
             "message": "Cycle logged successfully (Mock Mode)",
-            "cycle": {
-                "startDate": start_date,
-                "endDate": end_date,
-                "flowIntensity": flow_intensity,
-                "symptoms": symptoms,
-                "mood": mood
-            }
+            "cycle": cycle,
+            "prediction": predict_cycle(user_cycles),
         }), 201
 
     try:
@@ -205,19 +255,25 @@ def add_cycle():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/cycles", methods=["GET"])
+@authenticated_user
 def get_cycles():
     """
     Retrieves previous logs for cycle tracking.
     """
-    uid = request.args.get("uid", "mock_user_123")
+    uid = request.user_id
     logger.info(f"Fetching cycles for user: {uid}")
 
     if not firebase_initialized:
-        # Return mock history
-        return jsonify([
-            {"startDate": "2026-04-10", "endDate": "2026-04-15", "flowIntensity": "Medium", "mood": "Calm", "symptoms": ["Fatigue"]},
-            {"startDate": "2026-05-08", "endDate": "2026-05-13", "flowIntensity": "Heavy", "mood": "Anxious", "symptoms": ["Cramps", "Bloating"]}
-        ]), 200
+        if uid not in mock_cycles:
+            mock_cycles[uid] = [
+                {"id": "sample_1", "startDate": "2026-04-28", "endDate": "2026-05-02"},
+                {"id": "sample_2", "startDate": "2026-05-27", "endDate": "2026-05-31"},
+            ]
+        user_cycles = mock_cycles[uid]
+        return jsonify({
+            "cycles": sorted(user_cycles, key=lambda cycle: cycle["startDate"], reverse=True),
+            "prediction": predict_cycle(user_cycles),
+        }), 200
 
     try:
         cycles_ref = db.collection("users").document(uid).collection("cycles").order_by("startDate", direction=firestore.Query.DESCENDING)
@@ -227,9 +283,38 @@ def get_cycles():
             c = doc.to_dict()
             c["id"] = doc.id
             cycles_list.append(c)
-        return jsonify(cycles_list), 200
+        profile = db.collection("users").document(uid).get().to_dict() or {}
+        return jsonify({
+            "cycles": cycles_list,
+            "prediction": predict_cycle(cycles_list, fallback_cycle_length=profile.get("cycleLength", 28)),
+        }), 200
     except Exception as e:
         logger.error(f"Error getting cycles: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cycle-prediction", methods=["GET"])
+@authenticated_user
+def get_cycle_prediction():
+    uid = request.user_id
+    if not firebase_initialized:
+        return jsonify(predict_cycle(mock_cycles.get(uid, []))), 200
+
+    try:
+        docs = (
+            db.collection("users")
+            .document(uid)
+            .collection("cycles")
+            .order_by("startDate", direction=firestore.Query.ASCENDING)
+            .stream()
+        )
+        cycles = [doc.to_dict() for doc in docs]
+        profile = db.collection("users").document(uid).get().to_dict() or {}
+        return jsonify(
+            predict_cycle(cycles, fallback_cycle_length=profile.get("cycleLength", 28))
+        ), 200
+    except Exception as e:
+        logger.error(f"Error predicting cycle: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
