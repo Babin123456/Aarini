@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { CalendarDays, Smile, TrendingUp } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { SplashScreen } from '../screens/SplashScreen';
@@ -9,8 +11,21 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { CycleTrackerScreen } from '../screens/CycleTrackerScreen';
+import { InsightsScreen } from '../screens/InsightsScreen';
+
+let MoodScreen;
+try {
+  MoodScreen = require('../screens/MoodTrackingScreen').MoodTrackingScreen;
+} catch {
+  MoodScreen = () => (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Text>Mood tracking coming soon</Text>
+    </View>
+  );
+}
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -21,11 +36,51 @@ const AuthStack = () => (
   </Stack.Navigator>
 );
 
-const AppStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Dashboard" component={CycleTrackerScreen} />
-  </Stack.Navigator>
-);
+const AppTabs = () => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.cardBackground,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          paddingBottom: 6,
+          paddingTop: 6,
+          height: 60,
+        },
+        tabBarActiveTintColor: colors.primaryDark,
+        tabBarInactiveTintColor: colors.textLight,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={CycleTrackerScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <CalendarDays size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Mood"
+        component={MoodScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Smile size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Insights"
+        component={InsightsScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 export const AppNavigator = () => {
   const { userToken, isLoading } = useAuth();
@@ -49,7 +104,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={navigationTheme}>
-      {userToken ? <AppStack /> : <AuthStack />}
+      {userToken ? <AppTabs /> : <AuthStack />}
     </NavigationContainer>
   );
 };
