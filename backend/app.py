@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
+from middleware.validation import validate_request
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -101,6 +102,11 @@ def index():
 # ----------------- AUTHENTICATION ENDPOINTS -----------------
 
 @app.route("/signup", methods=["POST"])
+@validate_request({
+    "name": {"type": "string", "required": True, "min_length": 1},
+    "email": {"type": "email", "required": True},
+    "password": {"type": "string", "required": True, "min_length": 6},
+})
 def signup():
     """
     Creates a new user record.
@@ -159,6 +165,10 @@ def signup():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/login", methods=["POST"])
+@validate_request({
+    "email": {"type": "email", "required": True},
+    "password": {"type": "string", "required": True},
+})
 def login():
     """
     Validates user authentication session.
@@ -198,6 +208,11 @@ def login():
 
 @app.route("/add-cycle", methods=["POST"])
 @authenticated_user
+@validate_request({
+    "startDate": {"type": "date", "required": True},
+    "endDate": {"type": "date", "required": True},
+    "flowIntensity": {"type": "string", "required": False},
+})
 def add_cycle():
     """
     Records a cycle entry.
@@ -328,6 +343,11 @@ def get_cycle_prediction():
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
 @app.route("/add-symptom", methods=["POST"])
+@validate_request({
+    "type": {"type": "string", "required": True},
+    "severity": {"type": "string", "required": True},
+    "date": {"type": "date", "required": True},
+})
 def add_symptom():
     """
     Logs an individual symptom.
@@ -392,6 +412,9 @@ def get_symptoms():
 # ----------------- AI HEALTH CHAT ENDPOINTS -----------------
 
 @app.route("/chat", methods=["POST"])
+@validate_request({
+    "message": {"type": "string", "required": True, "min_length": 1, "max_length": 2000},
+})
 def chat():
     """
     Interacts with Gemini API securely for empathetic, women's wellness explanations.
