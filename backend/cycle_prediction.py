@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from statistics import median
+import math
 
 
 DEFAULT_CYCLE_LENGTH = 28
@@ -45,6 +46,26 @@ def _weighted_average(values):
     recent = values[-6:]
     weights = list(range(1, len(recent) + 1))
     return round(sum(value * weight for value, weight in zip(recent, weights)) / sum(weights))
+
+
+def _std_deviation(values):
+    if len(values) < 2:
+        return 0
+    mean = sum(values) / len(values)
+    variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+    return math.sqrt(variance)
+
+
+def _detect_irregularity(values, threshold=7):
+    if len(values) < 3:
+        return None
+    mean = sum(values) / len(values)
+    latest = values[-1]
+    deviation = abs(latest - mean)
+    if deviation > threshold:
+        direction = "longer" if latest > mean else "shorter"
+        return f"Your most recent cycle was {int(deviation)} days {direction} than your average. Consider tracking this with your healthcare provider if the pattern continues."
+    return None
 
 
 def predict_cycle(cycles, today=None, fallback_cycle_length=DEFAULT_CYCLE_LENGTH):
@@ -109,6 +130,12 @@ def predict_cycle(cycles, today=None, fallback_cycle_length=DEFAULT_CYCLE_LENGTH
 
     confidence = "high" if len(valid_intervals) >= 3 else "medium" if valid_intervals else "low"
 
+    std_dev = _std_deviation(valid_intervals) if len(valid_intervals) >= 2 else 0
+    margin_days = max(1, round(std_dev))
+    confidence_earliest = (next_period - timedelta(days=margin_days)).isoformat()
+    confidence_latest = (next_period + timedelta(days=margin_days)).isoformat()
+    irregularity_note = _detect_irregularity(valid_intervals)
+
     return {
         "hasHistory": True,
         "averageCycleLength": average_cycle,
@@ -118,8 +145,14 @@ def predict_cycle(cycles, today=None, fallback_cycle_length=DEFAULT_CYCLE_LENGTH
         "currentCycleStart": active_cycle_start.isoformat(),
         "nextPeriodStart": next_period.isoformat(),
         "nextPeriodEnd": (next_period + timedelta(days=average_period - 1)).isoformat(),
+        "confidenceWindow": {
+            "earliest": confidence_earliest,
+            "latest": confidence_latest,
+            "marginDays": margin_days,
+        },
         "ovulationDate": ovulation_date.isoformat(),
         "ovulationWindowStart": window_start.isoformat(),
         "ovulationWindowEnd": window_end.isoformat(),
         "confidence": confidence,
+        "irregularityNote": irregularity_note,
     }

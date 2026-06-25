@@ -15,6 +15,7 @@ import {
 import {
   cancelPredictionNotifications, schedulePredictionNotifications,
 } from '../services/predictionNotifications';
+import { syncCycles } from '../services/syncService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -50,6 +51,7 @@ export const CycleTrackerScreen = () => {
   const [endDate, setEndDate] = useState('');
   const [month, setMonth] = useState(new Date());
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('synced');
 
   const headers = useMemo(() => ({
     'Content-Type': 'application/json',
@@ -66,18 +68,20 @@ export const CycleTrackerScreen = () => {
 
   const loadCycles = useCallback(async () => {
     setLoading(true);
-    const local = JSON.parse((await AsyncStorage.getItem(storageKey)) || '[]');
+    setSyncStatus('syncing');
     try {
-      const response = await fetch(`${BACKEND_URL}/cycles`, { headers });
-      if (!response.ok) throw new Error('Cycle service unavailable');
-      const data = await response.json();
-      await updateState(data.cycles?.length ? data.cycles : local, data.prediction);
+      const result = await syncCycles({ storageKey, backendUrl: BACKEND_URL, headers });
+      setCycles(result.cycles);
+      setPrediction(result.prediction || predictCycleLocally(result.cycles, user?.cycleLength || 28));
+      setSyncStatus(result.syncStatus);
     } catch {
+      const local = JSON.parse((await AsyncStorage.getItem(storageKey)) || '[]');
       await updateState(local);
+      setSyncStatus('offline');
     } finally {
       setLoading(false);
     }
-  }, [headers, storageKey, updateState]);
+  }, [headers, storageKey, updateState, user?.cycleLength]);
 
   useEffect(() => {
     loadCycles();
@@ -156,6 +160,15 @@ export const CycleTrackerScreen = () => {
             <LogOut size={20} color={colors.textMedium} />
           </TouchableOpacity>
         </View>
+
+        {syncStatus !== 'synced' && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncStatus === 'offline' ? colors.errorDark : syncStatus === 'pending' ? colors.accentDark : colors.primaryDark }} />
+            <Text style={{ fontSize: 12, color: colors.textLight }}>
+              {syncStatus === 'offline' ? 'Offline - changes saved locally' : syncStatus === 'pending' ? 'Some entries pending sync' : 'Syncing...'}
+            </Text>
+          </View>
+        )}
 
         {loading ? (
           <View style={styles.loading}>
