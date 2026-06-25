@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # Enable Cross-Origin Resource Sharing for mobile client accessibility
+
+# CORS: restrict origins in production, allow all in development
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+allowed_origins = [o.strip() for o in allowed_origins if o.strip()]
+if allowed_origins:
+    CORS(app, origins=allowed_origins, supports_credentials=True)
+else:
+    CORS(app)
 mock_cycles = {}
 
 # Placeholder for Firebase Admin SDK initialization
@@ -485,5 +492,19 @@ def get_insights():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    # Run server on all hosts for mobile emulator outreach
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+
+    # Startup summary
+    gemini_status = "configured" if os.getenv("GEMINI_API_KEY") else "mock (no GEMINI_API_KEY)"
+    firebase_status = "connected" if firebase_initialized else "mock"
+    cors_status = ", ".join(allowed_origins) if allowed_origins else "all origins (dev mode)"
+    logger.info("=" * 50)
+    logger.info("Aarini Backend Starting")
+    logger.info(f"  Port:      {port}")
+    logger.info(f"  Debug:     {debug_mode}")
+    logger.info(f"  Firebase:  {firebase_status}")
+    logger.info(f"  Gemini:    {gemini_status}")
+    logger.info(f"  CORS:      {cors_status}")
+    logger.info("=" * 50)
+
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
