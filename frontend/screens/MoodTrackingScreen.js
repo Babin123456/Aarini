@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import Svg, { Polyline, Circle, Line } from 'react-native-svg';
 import { ArrowLeft, Smile, Frown, Meh, ThumbsUp, ThumbsDown, Calendar, TrendingUp } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureGetItem, secureSetItem } from '../utils/secureStorage';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const MOODS = [
@@ -28,6 +29,8 @@ const getDateKey = (d = new Date()) =>
 
 export const MoodTrackingScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const userId = user?.uid || 'local';
   const { colors, typography, spacing, borderRadius, shadows } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -38,7 +41,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
 
   const loadEntries = useCallback(async () => {
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      const raw = await secureGetItem(STORAGE_KEY, userId);
       if (raw) {
         const parsed = JSON.parse(raw);
         setEntries(parsed);
@@ -64,7 +67,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
     };
     setEntries(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await secureSetItem(STORAGE_KEY, JSON.stringify(updated), userId);
     } catch {
       // Storage full or unavailable
     }
@@ -79,7 +82,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
     };
     setEntries(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await secureSetItem(STORAGE_KEY, JSON.stringify(updated), userId);
     } catch {
       // Storage full or unavailable
     }
