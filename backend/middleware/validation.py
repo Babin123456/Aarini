@@ -27,9 +27,9 @@ def _check_field(value, rules, field_name):
             return "Must be a string"
         min_len = rules.get("min_length")
         max_len = rules.get("max_length")
-        if min_len and len(value) < min_len:
+        if min_len is not None and len(value) < min_len:
             return f"Must be at least {min_len} characters"
-        if max_len and len(value) > max_len:
+        if max_len is not None and len(value) > max_len:
             return f"Must be at most {max_len} characters"
 
     elif field_type == "date":
