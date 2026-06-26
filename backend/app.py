@@ -514,6 +514,159 @@ def get_insights():
     return jsonify(insights), 200
 
 
+# ----------------- CYCLE SHARING ENDPOINTS -----------------
+
+share_links = {}
+
+
+@app.route("/share/create", methods=["POST"])
+@authenticated_user
+def create_share_link():
+    """
+    Generates a unique share token granting read-only access to cycle data.
+    Expected Payload: { expiresInDays (optional, default 7) }
+    """
+    import hashlib
+    import time
+
+    data = request.get_json() or {}
+    uid = request.user_id
+    expires_in_days = data.get("expiresInDays", 7)
+
+    if not isinstance(expires_in_days, int) or expires_in_days < 1 or expires_in_days > 90:
+        return jsonify({"error": "expiresInDays must be between 1 and 90"}), 400
+
+    token = hashlib.sha256(f"{uid}:{time.time()}".encode()).hexdigest()[:16]
+    expires_at = int(time.time()) + (expires_in_days * 86400)
+
+    share_links[token] = {
+        "uid": uid,
+        "createdAt": int(time.time()),
+        "expiresAt": expires_at,
+        "active": True,
+    }
+
+    if firebase_initialized:
+        try:
+            db.collection("share_links").document(token).set({
+                "uid": uid,
+                "createdAt": int(time.time()),
+                "expiresAt": expires_at,
+                "active": True,
+            })
+        except Exception as e:
+            logger.error(f"Error storing share link: {str(e)}")
+
+    logger.info(f"Share link created for user {uid}: {token}")
+    return jsonify({
+        "token": token,
+        "expiresAt": expires_at,
+        "expiresInDays": expires_in_days,
+        "shareUrl": f"/share/view/{token}",
+    }), 201
+
+
+@app.route("/share/view/<token>", methods=["GET"])
+def view_shared_data(token):
+    """
+    Public endpoint - returns cycle data for a valid, non-expired share token.
+    No authentication required (the token IS the auth).
+    """
+    import time
+
+    link = share_links.get(token)
+
+    if firebase_initialized and not link:
+        try:
+            doc = db.collection("share_links").document(token).get()
+            if doc.exists:
+                link = doc.to_dict()
+        except Exception:
+            pass
+
+    if not link:
+        return jsonify({"error": "Share link not found"}), 404
+
+    if not link.get("active"):
+        return jsonify({"error": "Share link has been revoked"}), 403
+
+    if link.get("expiresAt", 0) < int(time.time()):
+        return jsonify({"error": "Share link has expired"}), 410
+
+    uid = link["uid"]
+
+    if not firebase_initialized:
+        cycles = mock_cycles.get(uid, [
+            {"startDate": "2026-04-28", "endDate": "2026-05-02", "flowIntensity": "Medium"},
+            {"startDate": "2026-05-27", "endDate": "2026-05-31", "flowIntensity": "Low"},
+        ])
+        return jsonify({
+            "cycles": cycles,
+            "prediction": predict_cycle(cycles if isinstance(cycles, list) else []),
+            "sharedBy": "Aarini User",
+            "disclaimer": "Shared health data - for informational purposes only.",
+        }), 200
+
+    try:
+        cycles_ref = (
+            db.collection("users").document(uid)
+            .collection("cycles")
+            .order_by("startDate", direction=firestore.Query.DESCENDING)
+            .limit(12)
+        )
+        cycles = [doc.to_dict() for doc in cycles_ref.stream()]
+        profile = db.collection("users").document(uid).get().to_dict() or {}
+
+        return jsonify({
+            "cycles": cycles,
+            "prediction": predict_cycle(cycles, fallback_cycle_length=profile.get("cycleLength", 28)),
+            "sharedBy": profile.get("name", "Aarini User"),
+            "disclaimer": "Shared health data - for informational purposes only.",
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching shared data: {str(e)}")
+        return jsonify({"error": "Failed to retrieve shared data"}), 500
+
+
+@app.route("/share/revoke", methods=["POST"])
+@authenticated_user
+def revoke_share_link():
+    """
+    Revokes an active share link.
+    Expected Payload: { token }
+    """
+    data = request.get_json() or {}
+    token = data.get("token")
+    uid = request.user_id
+
+    if not token:
+        return jsonify({"error": "Token is required"}), 400
+
+    link = share_links.get(token)
+    if link and link["uid"] != uid:
+        return jsonify({"error": "Not authorized to revoke this link"}), 403
+
+    if not link and not firebase_initialized:
+        return jsonify({"error": "Share link not found"}), 404
+
+    if link:
+        link["active"] = False
+
+    if firebase_initialized:
+        try:
+            doc_ref = db.collection("share_links").document(token)
+            doc = doc_ref.get()
+            if doc.exists and doc.to_dict().get("uid") == uid:
+                doc_ref.update({"active": False})
+            elif not doc.exists:
+                return jsonify({"error": "Share link not found"}), 404
+        except Exception as e:
+            logger.error(f"Error revoking share link: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Share link revoked", "token": token}), 200
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
