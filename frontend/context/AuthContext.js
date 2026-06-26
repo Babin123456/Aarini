@@ -1,19 +1,50 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
 
-// Define the context
 const AuthContext = createContext();
 
-// Define backend URL (use standard Android emulator host 10.0.2.2 or local port, or env variable)
-const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000'; // Fallback localhost, can be changed dynamically
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const ACTIVITY_EXTEND_MS = 30 * 60 * 1000; // 30 min of inactivity before expiry check
 
 export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const lastActivityRef = useRef(Date.now());
 
-  // Check storage on app startup to restore active user session
+  const clearSession = useCallback(async (expired = false) => {
+    setUserToken(null);
+    setUser(null);
+    if (expired) setSessionExpired(true);
+    await AsyncStorage.multiRemove(['userToken', 'user', 'tokenIssuedAt', 'lastActivity']);
+  }, []);
+
+  const updateActivity = useCallback(async () => {
+    const now = Date.now().toString();
+    lastActivityRef.current = Date.now();
+    await AsyncStorage.setItem('lastActivity', now);
+  }, []);
+
+  const isTokenExpired = useCallback(async () => {
+    const issuedAt = await AsyncStorage.getItem('tokenIssuedAt');
+    const lastActivity = await AsyncStorage.getItem('lastActivity');
+
+    if (!issuedAt) return true;
+
+    const issued = parseInt(issuedAt, 10);
+    const activity = lastActivity ? parseInt(lastActivity, 10) : issued;
+    const now = Date.now();
+
+    if (now - issued > SESSION_MAX_AGE_MS) return true;
+    if (now - activity > ACTIVITY_EXTEND_MS && now - issued > SESSION_MAX_AGE_MS / 2) return true;
+
+    return false;
+  }, []);
+
   useEffect(() => {
     const bootstrapAsync = async () => {
       try {
@@ -21,8 +52,14 @@ export const AuthProvider = ({ children }) => {
         const storedUser = await AsyncStorage.getItem('user');
 
         if (storedToken && storedUser) {
-          setUserToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const expired = await isTokenExpired();
+          if (expired) {
+            await clearSession(true);
+          } else {
+            setUserToken(storedToken);
+            setUser(JSON.parse(storedUser));
+            await updateActivity();
+          }
         }
       } catch (e) {
         console.error('Failed to restore session token', e);
@@ -32,19 +69,25 @@ export const AuthProvider = ({ children }) => {
     };
 
     bootstrapAsync();
-  }, []);
+  }, [isTokenExpired, clearSession, updateActivity]);
 
-  // Email and Password Login
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && userToken) {
+        updateActivity();
+      }
+    });
+    return () => subscription?.remove();
+  }, [userToken, updateActivity]);
+
   const login = async (email, password) => {
     setIsLoading(true);
     setError(null);
+    setSessionExpired(false);
     try {
-      // Formatted API call to backend
       const response = await fetch(`${BACKEND_URL}/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
@@ -54,7 +97,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(resData.error || 'Authentication failed. Please verify credentials.');
       }
 
-      // Session setup
       const token = resData.token || 'mock_token_' + Date.now();
       const userData = resData.user || {
         uid: 'mock_user_123',
@@ -67,13 +109,15 @@ export const AuthProvider = ({ children }) => {
       setUserToken(token);
       setUser(userData);
 
+      const now = Date.now().toString();
       await AsyncStorage.setItem('userToken', token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('tokenIssuedAt', now);
+      await AsyncStorage.setItem('lastActivity', now);
       return true;
     } catch (e) {
-      console.warn('API connection failed, falling back to mock authentication for offline usability:', e.message);
+      console.warn('API connection failed, falling back to mock authentication:', e.message);
 
-      // Simulation for offline/development simplicity:
       if (email === 'test@aarini.com' && password === 'password123') {
         const token = 'development_active_token';
         const userData = {
@@ -85,8 +129,11 @@ export const AuthProvider = ({ children }) => {
         };
         setUserToken(token);
         setUser(userData);
+        const now = Date.now().toString();
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
+        await AsyncStorage.setItem('tokenIssuedAt', now);
+        await AsyncStorage.setItem('lastActivity', now);
         return true;
       } else {
         setError(e.message || 'Server error. For development, use email test@aarini.com and password password123.');
@@ -97,16 +144,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // User Sign Up / Registration Onboarding
   const signup = async (name, email, password, age, cycleLength) => {
     setIsLoading(true);
     setError(null);
+    setSessionExpired(false);
     try {
       const response = await fetch(`${BACKEND_URL}/signup`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           email,
@@ -122,7 +167,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(resData.error || 'Registration failed.');
       }
 
-      // Automatically log the user in after signing up
       const token = 'registered_token_' + Date.now();
       const userData = {
         uid: resData.uid || 'new_user_uid',
@@ -135,13 +179,15 @@ export const AuthProvider = ({ children }) => {
       setUserToken(token);
       setUser(userData);
 
+      const now = Date.now().toString();
       await AsyncStorage.setItem('userToken', token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('tokenIssuedAt', now);
+      await AsyncStorage.setItem('lastActivity', now);
       return true;
     } catch (e) {
-      console.warn('Registration backend offline, simulating local signup state for visual testing:', e.message);
+      console.warn('Registration backend offline, simulating local signup:', e.message);
 
-      // Simulate local development sign-in state
       const token = 'mock_signup_token_' + Date.now();
       const userData = {
         uid: 'new_mock_user_' + Date.now(),
@@ -153,23 +199,22 @@ export const AuthProvider = ({ children }) => {
 
       setUserToken(token);
       setUser(userData);
+      const now = Date.now().toString();
       await AsyncStorage.setItem('userToken', token);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('tokenIssuedAt', now);
+      await AsyncStorage.setItem('lastActivity', now);
       return true;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Sign Out session
   const logout = async () => {
     setIsLoading(true);
     try {
-      setUserToken(null);
-      setUser(null);
+      await clearSession(false);
       setError(null);
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('user');
     } catch (e) {
       console.error('Session clearance error', e);
     } finally {
@@ -177,12 +222,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Reset Password
   const resetPassword = async (email) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate password reset logic (API call or Firebase hook)
       await new Promise((resolve) => setTimeout(resolve, 1500));
       return true;
     } catch (e) {
@@ -194,13 +237,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoading, userToken, user, error, login, signup, logout, resetPassword }}>
+    <AuthContext.Provider value={{ isLoading, userToken, user, error, sessionExpired, login, signup, logout, resetPassword, updateActivity }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom Hook to invoke auth context quickly in screens
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
