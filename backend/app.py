@@ -514,6 +514,56 @@ def get_insights():
     return jsonify(insights), 200
 
 
+# ----------------- ACCOUNT MANAGEMENT ENDPOINTS -----------------
+
+@app.route("/delete-account", methods=["DELETE"])
+@authenticated_user
+def delete_account():
+    """
+    Permanently deletes user account and all associated health data.
+    Requires confirmed intent via { "confirm": true } in the request body.
+    """
+    data = request.get_json() or {}
+    uid = request.user_id
+
+    if not data.get("confirm"):
+        return jsonify({
+            "error": "Account deletion requires explicit confirmation. Send {\"confirm\": true}."
+        }), 400
+
+    logger.info(f"Account deletion requested for user: {uid}")
+
+    if not firebase_initialized:
+        mock_cycles.pop(uid, None)
+        return jsonify({
+            "message": "Account and all health data permanently deleted (Mock Mode)",
+            "deletedCollections": ["cycles", "symptoms", "moods", "profile"]
+        }), 200
+
+    try:
+        user_doc = db.collection("users").document(uid)
+
+        subcollections = ["cycles", "symptoms", "moods"]
+        for coll_name in subcollections:
+            docs = user_doc.collection(coll_name).stream()
+            for doc in docs:
+                doc.reference.delete()
+
+        user_doc.delete()
+
+        auth.delete_user(uid)
+
+        logger.info(f"Account permanently deleted: {uid}")
+        return jsonify({
+            "message": "Account and all health data permanently deleted",
+            "deletedCollections": subcollections + ["profile"]
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Account deletion error: {str(e)}")
+        return jsonify({"error": f"Failed to delete account: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"

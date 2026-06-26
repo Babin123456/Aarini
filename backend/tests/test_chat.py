@@ -43,8 +43,8 @@ class TestChat:
         assert "response" in data
 
     def test_chat_long_message(self, client, json_headers):
-        """Long messages don't crash the endpoint."""
-        payload = {"message": "I have been experiencing " + "cramps " * 500}
+        """Long messages within the validation limit don't crash the endpoint."""
+        payload = {"message": "I have been experiencing " + "cramps " * 200}
         resp = client.post("/chat", headers=json_headers, json=payload)
 
         assert resp.status_code == 200

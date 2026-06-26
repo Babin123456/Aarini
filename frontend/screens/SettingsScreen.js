@@ -3,19 +3,22 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { exportHealthData, shareExportFile } from '../services/exportService';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+
 export const SettingsScreen = ({ navigation }) => {
-  const { userToken, user } = useAuth();
+  const { userToken, user, logout } = useAuth();
   const { theme } = useTheme();
   const { colors, typography, spacing, borderRadius, shadows } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [exporting, setExporting] = useState(false);
   const [lastExport, setLastExport] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleExport = async (format) => {
     setExporting(true);
@@ -29,6 +32,47 @@ export const SettingsScreen = ({ navigation }) => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all health data (cycles, symptoms, moods). This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const headers = { 'Content-Type': 'application/json' };
+              if (userToken) {
+                headers['Authorization'] = `Bearer ${userToken}`;
+              } else {
+                headers['X-User-Id'] = user?.uid || 'mock_user_123';
+              }
+              const resp = await fetch(`${API_BASE}/delete-account`, {
+                method: 'DELETE',
+                headers,
+                body: JSON.stringify({ confirm: true }),
+              });
+              const data = await resp.json();
+              if (!resp.ok) {
+                throw new Error(data.error || 'Deletion failed');
+              }
+              Alert.alert('Account Deleted', 'Your account and all data have been removed.', [
+                { text: 'OK', onPress: () => logout() },
+              ]);
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Could not delete account. Please try again.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -101,6 +145,39 @@ export const SettingsScreen = ({ navigation }) => {
             </Text>
           )}
         </View>
+
+        <View style={[styles.card, styles.dangerCard]}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.cardIcon, styles.dangerIcon]}>
+              <Trash2 size={20} color={colors.error || '#DC2626'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>Delete Account</Text>
+              <Text style={styles.cardSubtitle}>Permanently remove your account and all stored data</Text>
+            </View>
+          </View>
+
+          <Text style={styles.infoText}>
+            This will permanently delete your profile, cycle history, symptom logs, mood entries,
+            and any other stored health data. This action cannot be undone.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+            accessibilityLabel="Delete your account permanently"
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Trash2 size={18} color="#FFFFFF" />
+                <Text style={styles.deleteButtonText}>Delete My Account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -125,4 +202,8 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
     exportButtonTextPrimary: { ...typography.buttonText, color: colors.textOnPrimary },
     exportButtonTextSecondary: { ...typography.buttonText, color: colors.primaryDark },
     successText: { ...typography.bodySmall, color: colors.successDark, marginTop: spacing.md, textAlign: 'center' },
+    dangerCard: { borderWidth: 1, borderColor: colors.error || '#FCA5A5' },
+    dangerIcon: { backgroundColor: (colors.error || '#DC2626') + '15' },
+    deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: 14, borderRadius: borderRadius.md, backgroundColor: colors.error || '#DC2626' },
+    deleteButtonText: { ...typography.buttonText, color: '#FFFFFF' },
   });
