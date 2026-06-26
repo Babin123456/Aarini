@@ -7,6 +7,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
 from middleware.validation import validate_request
+from utils.sanitize import sanitize_for_ai
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -466,7 +467,7 @@ def chat():
             system_instruction=system_instruction
         )
 
-        response = model.generate_content(user_message)
+        response = model.generate_content(sanitize_for_ai(user_message)[0])
         
         return jsonify({
             "response": response.text,

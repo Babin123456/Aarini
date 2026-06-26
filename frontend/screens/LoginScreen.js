@@ -17,7 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Sparkles } from 'lucide-react-native';
 
 export const LoginScreen = ({ navigation }) => {
-  const { login, isLoading, error: authError } = useAuth();
+  const { login, isLoading, error: authError, sessionExpired } = useAuth();
   const { theme } = useTheme();
   const { colors, typography } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -98,6 +98,13 @@ export const LoginScreen = ({ navigation }) => {
             <Text style={[typography.bodyLarge, styles.subtitle]}>
               Step into your safe, mindful wellness space.
             </Text>
+            {sessionExpired && (
+              <View style={{ backgroundColor: colors.error, borderRadius: 8, padding: 12, marginTop: 12 }}>
+                <Text style={{ color: colors.errorDark, fontSize: 13, fontWeight: '500', textAlign: 'center' }}>
+                  Your session has expired. Please log in again.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Form Fields */}
