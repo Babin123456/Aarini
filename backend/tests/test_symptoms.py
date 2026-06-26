@@ -1,0 +1,88 @@
+"""Integration tests for symptom tracking endpoints (/add-symptom, /symptoms)."""
+
+import json
+
+
+class TestAddSymptom:
+    """POST /add-symptom endpoint tests."""
+
+    def test_add_symptom_success(self, client, json_headers):
+        """Valid symptom log returns 201 in mock mode."""
+        payload = {
+            "uid": "test_user_001",
+            "type": "Cramps",
+            "severity": "High",
+            "date": "2026-06-15",
+        }
+        resp = client.post("/add-symptom", headers=json_headers, json=payload)
+
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert "message" in data
+
+    def test_add_symptom_missing_type(self, client, json_headers):
+        """Missing symptom type returns 400."""
+        payload = {"severity": "Low", "date": "2026-06-15"}
+        resp = client.post("/add-symptom", headers=json_headers, json=payload)
+
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "error" in data
+
+    def test_add_symptom_missing_severity(self, client, json_headers):
+        """Missing severity returns 400."""
+        payload = {"type": "Headache", "date": "2026-06-15"}
+        resp = client.post("/add-symptom", headers=json_headers, json=payload)
+
+        assert resp.status_code == 400
+
+    def test_add_symptom_missing_date(self, client, json_headers):
+        """Missing date returns 400."""
+        payload = {"type": "Bloating", "severity": "Medium"}
+        resp = client.post("/add-symptom", headers=json_headers, json=payload)
+
+        assert resp.status_code == 400
+
+    def test_add_symptom_empty_body(self, client, json_headers):
+        """Empty body returns 400."""
+        resp = client.post("/add-symptom", headers=json_headers, json={})
+
+        assert resp.status_code == 400
+
+    def test_add_symptom_default_uid(self, client, json_headers):
+        """Without uid in body, uses default mock_user_123."""
+        payload = {"type": "Acne", "severity": "Low", "date": "2026-06-10"}
+        resp = client.post("/add-symptom", headers=json_headers, json=payload)
+
+        assert resp.status_code == 201
+
+
+class TestGetSymptoms:
+    """GET /symptoms endpoint tests."""
+
+    def test_get_symptoms_success(self, client, json_headers):
+        """Returns symptom list (mock data) with 200."""
+        resp = client.get("/symptoms?uid=test_user_001", headers=json_headers)
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+
+    def test_get_symptoms_default_uid(self, client, json_headers):
+        """Without uid param, uses mock_user_123."""
+        resp = client.get("/symptoms", headers=json_headers)
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+
+    def test_get_symptoms_has_expected_fields(self, client, json_headers):
+        """Mock symptoms contain type, severity, and date."""
+        resp = client.get("/symptoms", headers=json_headers)
+
+        data = resp.get_json()
+        for symptom in data:
+            assert "type" in symptom
+            assert "severity" in symptom
+            assert "date" in symptom
