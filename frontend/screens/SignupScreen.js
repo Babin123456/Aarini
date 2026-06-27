@@ -159,7 +159,7 @@ export const SignupScreen = ({ navigation }) => {
 
           {/* Header Section */}
           <View style={styles.header}>
-            <View style={styles.iconBadge}>
+            <View style={styles.iconBadge} importantForAccessibility="no">
               <Heart size={24} color={colors.secondaryDark} />
             </View>
             <Text style={[typography.h1, styles.title]}>

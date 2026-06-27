@@ -75,7 +75,7 @@ export const InputField = ({
         )}
       </View>
 
-      {hasError && <Text style={styles.errorText}>{error}</Text>}
+      {hasError && <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text>}
     </View>
   );
 };

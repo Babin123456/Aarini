@@ -320,7 +320,9 @@ export const InsightsScreen = ({ navigation }) => {
 
             {/* Gentle note */}
             <View style={styles.noteCard} accessibilityRole="text">
-              <Droplet size={16} color={colors.primaryDark} importantForAccessibility="no" />
+              <View importantForAccessibility="no">
+                <Droplet size={16} color={colors.primaryDark} />
+              </View>
               <Text style={styles.noteText}>
                 These insights are based only on what you've logged. The more you
                 track, the clearer your patterns become.

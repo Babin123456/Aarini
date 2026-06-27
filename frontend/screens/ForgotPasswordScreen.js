@@ -82,7 +82,7 @@ export const ForgotPasswordScreen = ({ navigation }) => {
             {!isSuccess ? (
               // Phase 1: Request Form
               <View style={styles.card}>
-                <View style={styles.iconBadge}>
+                <View style={styles.iconBadge} importantForAccessibility="no">
                   <Mail size={24} color={colors.primaryDark} />
                 </View>
                 <Text style={[typography.h1, styles.title]}>Reset Password</Text>

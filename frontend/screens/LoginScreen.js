@@ -91,7 +91,7 @@ export const LoginScreen = ({ navigation }) => {
         >
           {/* Header Section */}
           <View style={styles.header}>
-            <View style={styles.iconBadge}>
+            <View style={styles.iconBadge} importantForAccessibility="no">
               <Sparkles size={24} color={colors.primaryDark} />
             </View>
             <Text style={[typography.h1, styles.title]}>Welcome Back</Text>
