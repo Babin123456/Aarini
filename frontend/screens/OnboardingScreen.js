@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, Platform, Alert,
+  TouchableOpacity, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CalendarDays, ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react-native';
@@ -37,7 +37,7 @@ const StepIndicator = ({ current, total, colors }) => (
 );
 
 export const OnboardingScreen = ({ navigation }) => {
-  const { user, userToken } = useAuth();
+  const { user, userToken, completeOnboarding } = useAuth();
   const { theme } = useTheme();
   const { colors, typography, spacing, borderRadius } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -77,6 +77,14 @@ export const OnboardingScreen = ({ navigation }) => {
   const handleComplete = useCallback(async () => {
     setSubmitting(true);
     try {
+      if (!lastPeriodDate) {
+        await saveOnboardingData({ cycleLength, periodDuration, commonSymptoms: selectedSymptoms, completedAt: new Date().toISOString() });
+        await markOnboardingComplete();
+        completeOnboarding();
+        navigation.replace('Tabs');
+        return;
+      }
+
       const endDate = new Date(lastPeriodDate);
       endDate.setDate(endDate.getDate() + periodDuration - 1);
 
@@ -117,6 +125,7 @@ export const OnboardingScreen = ({ navigation }) => {
 
       await saveOnboardingData(onboardingData);
       await markOnboardingComplete();
+      completeOnboarding();
       navigation.replace('Tabs');
     } catch (err) {
       await saveOnboardingData({
@@ -127,11 +136,12 @@ export const OnboardingScreen = ({ navigation }) => {
         completedAt: new Date().toISOString(),
       });
       await markOnboardingComplete();
+      completeOnboarding();
       navigation.replace('Tabs');
     } finally {
       setSubmitting(false);
     }
-  }, [cycleLength, periodDuration, lastPeriodDate, selectedSymptoms, userToken, user, navigation]);
+  }, [cycleLength, periodDuration, lastPeriodDate, selectedSymptoms, userToken, user, navigation, completeOnboarding]);
 
   const renderStep1 = () => (
     <View accessibilityLabel="Step 1: Cycle basics">
