@@ -119,9 +119,9 @@ export const InsightsScreen = ({ navigation }) => {
   // ---- Sub-components -----------------------------------------------------
 
   const SectionCard = ({ icon, title, subtitle, children, isEmpty, emptyText }) => (
-    <View style={styles.card}>
+    <View style={styles.card} accessibilityLabel={title}>
       <View style={styles.cardHeader}>
-        <View style={styles.cardIcon}>{icon}</View>
+        <View style={styles.cardIcon} importantForAccessibility="no">{icon}</View>
         <View style={styles.flex}>
           <Text style={[typography.h3, styles.cardTitle]}>{title}</Text>
           {subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
@@ -319,8 +319,8 @@ export const InsightsScreen = ({ navigation }) => {
             </SectionCard>
 
             {/* Gentle note */}
-            <View style={styles.noteCard}>
-              <Droplet size={16} color={colors.primaryDark} />
+            <View style={styles.noteCard} accessibilityRole="text">
+              <Droplet size={16} color={colors.primaryDark} importantForAccessibility="no" />
               <Text style={styles.noteText}>
                 These insights are based only on what you've logged. The more you
                 track, the clearer your patterns become.

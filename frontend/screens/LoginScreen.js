@@ -99,7 +99,11 @@ export const LoginScreen = ({ navigation }) => {
               Step into your safe, mindful wellness space.
             </Text>
             {sessionExpired && (
-              <View style={{ backgroundColor: colors.error, borderRadius: 8, padding: 12, marginTop: 12 }}>
+              <View
+                style={{ backgroundColor: colors.error, borderRadius: 8, padding: 12, marginTop: 12 }}
+                accessibilityLiveRegion="polite"
+                accessibilityRole="alert"
+              >
                 <Text style={{ color: colors.errorDark, fontSize: 13, fontWeight: '500', textAlign: 'center' }}>
                   Your session has expired. Please log in again.
                 </Text>
@@ -132,6 +136,8 @@ export const LoginScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('ForgotPassword')}
               style={styles.forgotContainer}
               activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="Forgot password"
             >
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
@@ -145,7 +151,7 @@ export const LoginScreen = ({ navigation }) => {
             />
 
             {/* Quick Demo Info banner */}
-            <View style={styles.demoBanner}>
+            <View style={styles.demoBanner} importantForAccessibility="no">
               <Text style={styles.demoText}>
                 💡 Dev Mode: Use <Text style={{fontWeight: '700'}}>test@aarini.com</Text> with password <Text style={{fontWeight: '700'}}>password123</Text> for rapid testing!
               </Text>
@@ -160,6 +166,8 @@ export const LoginScreen = ({ navigation }) => {
             <TouchableOpacity 
               onPress={() => navigation.navigate('Signup')}
               activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="Create Account"
             >
               <Text style={styles.signupLink}>Create Account</Text>
             </TouchableOpacity>

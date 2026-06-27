@@ -49,6 +49,9 @@ export const Button = ({
       disabled={disabled || loading}
       activeOpacity={0.8}
       style={buttonStyles}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {loading ? (
         <ActivityIndicator 
