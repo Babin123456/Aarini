@@ -15,6 +15,7 @@ import { InsightsScreen } from '../screens/InsightsScreen';
 import { MoodTrackingScreen } from '../screens/MoodTrackingScreen';
 import { SymptomLogScreen } from '../screens/SymptomLogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { ShareScreen } from '../screens/ShareScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +80,7 @@ const AppStack = () => (
     <Stack.Screen name="Tabs" component={AppTabs} />
     <Stack.Screen name="SymptomLog" component={SymptomLogScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="Share" component={ShareScreen} />
   </Stack.Navigator>
 );
 

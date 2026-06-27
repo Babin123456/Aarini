@@ -220,12 +220,14 @@ export const MoodTrackingScreen = ({ navigation }) => {
               onChangeText={saveNote}
               multiline
               maxLength={200}
+              accessibilityLabel="Mood note"
+              accessibilityHint="Add an optional note about how you feel today"
             />
           )}
         </View>
 
         {/* Weekly trend */}
-        <View style={styles.card}>
+        <View style={styles.card} accessibilityLabel="7-day mood trend chart">
           <View style={styles.cardHeader}>
             <View style={styles.cardIcon}>
               <TrendingUp size={20} color={colors.primaryDark} />

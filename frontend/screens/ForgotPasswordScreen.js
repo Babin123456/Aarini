@@ -70,6 +70,8 @@ export const ForgotPasswordScreen = ({ navigation }) => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <ChevronLeft size={24} color={colors.textDark} />
             <Text style={styles.backText}>Back</Text>
@@ -80,7 +82,7 @@ export const ForgotPasswordScreen = ({ navigation }) => {
             {!isSuccess ? (
               // Phase 1: Request Form
               <View style={styles.card}>
-                <View style={styles.iconBadge}>
+                <View style={styles.iconBadge} importantForAccessibility="no">
                   <Mail size={24} color={colors.primaryDark} />
                 </View>
                 <Text style={[typography.h1, styles.title]}>Reset Password</Text>
@@ -106,8 +108,8 @@ export const ForgotPasswordScreen = ({ navigation }) => {
               </View>
             ) : (
               // Phase 2: Recovery Link Sent Success Display
-              <View style={[styles.card, styles.successCard]}>
-                <View style={styles.successBadge}>
+              <View style={[styles.card, styles.successCard]} accessibilityLiveRegion="polite" accessibilityRole="alert">
+                <View style={styles.successBadge} importantForAccessibility="no">
                   <CheckCircle2 size={40} color={colors.successDark} />
                 </View>
                 <Text style={[typography.h1, styles.title]}>Check Your Inbox</Text>
