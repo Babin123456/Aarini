@@ -152,14 +152,14 @@ export const SignupScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Progress Indicator */}
-          <View style={styles.progressContainer}>
+          <View style={styles.progressContainer} accessibilityRole="progressbar" accessibilityLabel={`Step ${step} of 2`}>
             <View style={[styles.progressBar, step >= 1 && styles.activeProgress]} />
             <View style={[styles.progressBar, step >= 2 && styles.activeProgress]} />
           </View>
 
           {/* Header Section */}
           <View style={styles.header}>
-            <View style={styles.iconBadge}>
+            <View style={styles.iconBadge} importantForAccessibility="no">
               <Heart size={24} color={colors.secondaryDark} />
             </View>
             <Text style={[typography.h1, styles.title]}>
@@ -216,7 +216,7 @@ export const SignupScreen = ({ navigation }) => {
                 />
 
                 {passwordStrength && (
-                  <View style={{ marginTop: 4, marginBottom: 8 }}>
+                  <View style={{ marginTop: 4, marginBottom: 8 }} accessibilityLabel={`Password strength: ${passwordStrength}`}>
                     <View style={{ flexDirection: 'row', marginBottom: 4 }}>
                       <View style={{ 
                         flex: 1, 
@@ -314,6 +314,8 @@ export const SignupScreen = ({ navigation }) => {
             <TouchableOpacity 
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="Sign In"
             >
               <Text style={styles.loginLink}>Sign In</Text>
             </TouchableOpacity>

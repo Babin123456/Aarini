@@ -162,8 +162,8 @@ export const CycleTrackerScreen = () => {
         </View>
 
         {syncStatus !== 'synced' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncStatus === 'offline' ? colors.errorDark : syncStatus === 'pending' ? colors.accentDark : colors.primaryDark }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }} accessibilityLiveRegion="polite">
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncStatus === 'offline' ? colors.errorDark : syncStatus === 'pending' ? colors.accentDark : colors.primaryDark }} importantForAccessibility="no" />
             <Text style={{ fontSize: 12, color: colors.textLight }}>
               {syncStatus === 'offline' ? 'Offline - changes saved locally' : syncStatus === 'pending' ? 'Some entries pending sync' : 'Syncing...'}
             </Text>
@@ -180,7 +180,7 @@ export const CycleTrackerScreen = () => {
             <Droplets size={30} color={colors.secondaryDark} />
             <Text style={[typography.h2, styles.center]}>Start with your latest period</Text>
             <Text style={[styles.muted, styles.center]}>Log start and end dates to unlock phase and period predictions.</Text>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel="Log period">
               <Plus size={18} color={colors.white} />
               <Text style={styles.primaryButtonText}>Log period</Text>
             </TouchableOpacity>
@@ -218,18 +218,18 @@ export const CycleTrackerScreen = () => {
             <CalendarDays size={20} color={colors.primaryDark} />
             <Text style={typography.h2}>Cycle calendar</Text>
           </View>
-          <TouchableOpacity style={styles.smallButton} onPress={() => setModalVisible(true)}>
+          <TouchableOpacity style={styles.smallButton} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel="Log period">
             <Plus size={16} color={colors.primaryDark} /><Text style={styles.smallButtonText}>Log</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.calendarCard}>
           <View style={styles.calendarHeader}>
-            <TouchableOpacity onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+            <TouchableOpacity onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} accessibilityRole="button" accessibilityLabel="Previous month">
               <ChevronLeft color={colors.textDark} />
             </TouchableOpacity>
             <Text style={styles.monthTitle}>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</Text>
-            <TouchableOpacity onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+            <TouchableOpacity onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} accessibilityRole="button" accessibilityLabel="Next month">
               <ChevronRight color={colors.textDark} />
             </TouchableOpacity>
           </View>
@@ -255,12 +255,18 @@ export const CycleTrackerScreen = () => {
         </View>
 
         <View style={styles.notificationCard}>
-          <View style={styles.bell}><Bell size={19} color={colors.primaryDark} /></View>
+          <View style={styles.bell} importantForAccessibility="no"><Bell size={19} color={colors.primaryDark} /></View>
           <View style={styles.flex}>
             <Text style={styles.notificationTitle}>Prediction reminders</Text>
             <Text style={styles.muted}>A heads-up before your predicted period and ovulation window.</Text>
           </View>
-          <Switch value={notificationsEnabled} onValueChange={toggleNotifications} trackColor={{ true: colors.primaryDark }} />
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={toggleNotifications}
+            trackColor={{ true: colors.primaryDark }}
+            accessibilityLabel="Prediction reminders"
+            accessibilityRole="switch"
+          />
         </View>
         <Text style={styles.disclaimer}>Estimates can vary and should not be used as birth control or medical diagnosis.</Text>
       </ScrollView>
@@ -271,13 +277,13 @@ export const CycleTrackerScreen = () => {
             <Text style={typography.h2}>Log your period</Text>
             <Text style={styles.modalHint}>Enter dates in YYYY-MM-DD format.</Text>
             <Text style={styles.inputLabel}>Start date</Text>
-            <TextInput value={startDate} onChangeText={setStartDate} placeholder="2026-06-20" placeholderTextColor={colors.textLight} style={styles.input} />
+            <TextInput value={startDate} onChangeText={setStartDate} placeholder="2026-06-20" placeholderTextColor={colors.textLight} style={styles.input} accessibilityLabel="Start date" />
             <Text style={styles.inputLabel}>End date</Text>
-            <TextInput value={endDate} onChangeText={setEndDate} placeholder="2026-06-24" placeholderTextColor={colors.textLight} style={styles.input} />
-            <TouchableOpacity style={styles.primaryButton} onPress={saveCycle} disabled={saving}>
+            <TextInput value={endDate} onChangeText={setEndDate} placeholder="2026-06-24" placeholderTextColor={colors.textLight} style={styles.input} accessibilityLabel="End date" />
+            <TouchableOpacity style={styles.primaryButton} onPress={saveCycle} disabled={saving} accessibilityRole="button" accessibilityLabel={saving ? 'Saving period' : 'Save period'}>
               <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Save period'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

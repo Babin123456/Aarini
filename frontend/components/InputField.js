@@ -53,6 +53,8 @@ export const InputField = ({
           style={[styles.input, typography.bodyLarge, inputStyle]}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          accessibilityLabel={label || placeholder}
+          accessibilityHint={secureTextEntry ? 'Password field' : undefined}
           {...props}
         />
 
@@ -61,6 +63,8 @@ export const InputField = ({
             onPress={togglePasswordVisibility} 
             activeOpacity={0.7}
             style={styles.eyeButton}
+            accessibilityRole="button"
+            accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
           >
             {isPasswordVisible ? (
               <EyeOff size={20} color={colors.textMedium} />
@@ -71,7 +75,7 @@ export const InputField = ({
         )}
       </View>
 
-      {hasError && <Text style={styles.errorText}>{error}</Text>}
+      {hasError && <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text>}
     </View>
   );
 };

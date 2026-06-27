@@ -58,6 +58,7 @@ export const SplashScreen = ({ navigation }) => {
               styles.logoContainer,
               { opacity: logoOpacity, transform: [{ scale: logoScale }] },
             ]}
+            importantForAccessibility="no"
           >
             <View style={styles.flowerIcon}>
               <Flower size={48} color={colors.primaryDark} strokeWidth={1.5} />
@@ -65,7 +66,7 @@ export const SplashScreen = ({ navigation }) => {
           </Animated.View>
 
           {/* Text Fades */}
-          <Animated.View style={[styles.textContainer, { opacity: textOpacity }]}>
+          <Animated.View style={[styles.textContainer, { opacity: textOpacity }]} accessibilityRole="header">
             <Text style={[typography.h1, styles.brandName]}>Aarini</Text>
             <Text style={[typography.bodyLarge, styles.tagline]}>
               Hormonal Wellness & Period Companion
@@ -73,7 +74,7 @@ export const SplashScreen = ({ navigation }) => {
           </Animated.View>
 
           {/* Safe Private Indicator */}
-          <Animated.View style={[styles.footerContainer, { opacity: textOpacity }]}>
+          <Animated.View style={[styles.footerContainer, { opacity: textOpacity }]} importantForAccessibility="no">
             <ActivityIndicator size="small" color={colors.primaryDark} style={styles.loader} />
             <Text style={[typography.caption, styles.secureLabel]}>
               🔒 Secure, private, and encrypted
