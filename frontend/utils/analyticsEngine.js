@@ -28,7 +28,8 @@ export function computePredictionAccuracy(cycles, fallbackLength = 28) {
   const entries = [];
   for (let i = 2; i < sorted.length; i++) {
     const historySoFar = sorted.slice(0, i);
-    const prediction = predictCycleLocally(historySoFar, fallbackLength, sorted[i].start);
+    const dayBeforeActual = new Date(sorted[i].start.getTime() - DAY_MS);
+    const prediction = predictCycleLocally(historySoFar, fallbackLength, dayBeforeActual);
     if (!prediction.hasHistory) continue;
 
     const predictedStart = parseLocalDate(prediction.nextPeriodStart);
