@@ -296,6 +296,7 @@ def add_cycle():
         }
         user_cycles = mock_cycles.setdefault(uid, [])
         user_cycles.append(cycle)
+        invalidate_cache(uid)
         return jsonify({
             "message": "Cycle logged successfully (Mock Mode)",
             "cycle": cycle,
@@ -313,6 +314,7 @@ def add_cycle():
             "loggedAt": firestore.SERVER_TIMESTAMP
         }
         cycle_ref.set(cycle_data)
+        invalidate_cache(uid)
         return jsonify({"message": "Cycle data saved", "id": cycle_ref.id}), 201
     except Exception as e:
         logger.error(f"Error saving cycle: {str(e)}")
