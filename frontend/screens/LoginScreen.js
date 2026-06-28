@@ -14,11 +14,13 @@ import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { Sparkles } from 'lucide-react-native';
 
 export const LoginScreen = ({ navigation }) => {
   const { login, isLoading, error: authError, sessionExpired } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { colors, typography } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   
@@ -34,35 +36,33 @@ export const LoginScreen = ({ navigation }) => {
     setEmail(text);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (text.trim() === '') {
-      setEmailError('Email is required.');
+      setEmailError(t('validation.emailRequired'));
     } else if (!emailRegex.test(text)) {
-      setEmailError('Please enter a valid email address.');
+      setEmailError(t('validation.emailInvalid'));
     } else {
       setEmailError(null);
     }
   };
 
-  // Password validation
   const validatePassword = (text) => {
     setPassword(text);
     if (text.trim() === '') {
-      setPasswordError('Password is required.');
+      setPasswordError(t('validation.passwordRequired'));
     } else if (text.length < 6) {
-      setPasswordError('Password must be at least 6 characters.');
+      setPasswordError(t('validation.passwordTooShort'));
     } else {
       setPasswordError(null);
     }
   };
 
   const handleLogin = async () => {
-    // Check if there are blank inputs
     let valid = true;
     if (!email) {
-      setEmailError('Email is required.');
+      setEmailError(t('validation.emailRequired'));
       valid = false;
     }
     if (!password) {
-      setPasswordError('Password is required.');
+      setPasswordError(t('validation.passwordRequired'));
       valid = false;
     }
 
@@ -72,7 +72,7 @@ export const LoginScreen = ({ navigation }) => {
 
     const success = await login(email, password);
     if (!success) {
-      Alert.alert('Login Error', authError || 'Failed to authenticate. Please check your credentials.');
+      Alert.alert(t('login.loginError'), authError || t('login.loginFailed'));
     }
   };
 
@@ -94,9 +94,9 @@ export const LoginScreen = ({ navigation }) => {
             <View style={styles.iconBadge} importantForAccessibility="no">
               <Sparkles size={24} color={colors.primaryDark} />
             </View>
-            <Text style={[typography.h1, styles.title]}>Welcome Back</Text>
+            <Text style={[typography.h1, styles.title]}>{t('login.title')}</Text>
             <Text style={[typography.bodyLarge, styles.subtitle]}>
-              Step into your safe, mindful wellness space.
+              {t('login.subtitle')}
             </Text>
             {sessionExpired && (
               <View
@@ -105,7 +105,7 @@ export const LoginScreen = ({ navigation }) => {
                 accessibilityRole="alert"
               >
                 <Text style={{ color: colors.errorDark, fontSize: 13, fontWeight: '500', textAlign: 'center' }}>
-                  Your session has expired. Please log in again.
+                  {t('login.sessionExpired')}
                 </Text>
               </View>
             )}
@@ -114,46 +114,43 @@ export const LoginScreen = ({ navigation }) => {
           {/* Form Fields */}
           <View style={styles.form}>
             <InputField
-              label="EMAIL ADDRESS"
+              label={t('login.emailLabel')}
               value={email}
               onChangeText={validateEmail}
-              placeholder="e.g., jane@example.com"
+              placeholder={t('login.emailPlaceholder')}
               keyboardType="email-address"
               error={emailError}
             />
 
             <InputField
-              label="PASSWORD"
+              label={t('login.passwordLabel')}
               value={password}
               onChangeText={validatePassword}
-              placeholder="Enter your password"
+              placeholder={t('login.passwordPlaceholder')}
               secureTextEntry={true}
               error={passwordError}
             />
 
-            {/* Forgot Password Link */}
             <TouchableOpacity 
               onPress={() => navigation.navigate('ForgotPassword')}
               style={styles.forgotContainer}
               activeOpacity={0.7}
               accessibilityRole="link"
-              accessibilityLabel="Forgot password"
+              accessibilityLabel={t('login.forgotPassword')}
             >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
             </TouchableOpacity>
 
-            {/* Submit Button */}
             <Button
-              title="Sign In"
+              title={t('login.signIn')}
               onPress={handleLogin}
               loading={isLoading}
               style={styles.submitButton}
             />
 
-            {/* Quick Demo Info banner */}
             <View style={styles.demoBanner} importantForAccessibility="no">
               <Text style={styles.demoText}>
-                💡 Dev Mode: Use <Text style={{fontWeight: '700'}}>test@aarini.com</Text> with password <Text style={{fontWeight: '700'}}>password123</Text> for rapid testing!
+                {t('login.demoHint')}
               </Text>
             </View>
           </View>
@@ -161,15 +158,15 @@ export const LoginScreen = ({ navigation }) => {
           {/* Bottom Onboarding Switch Link */}
           <View style={styles.footer}>
             <Text style={[typography.bodyMedium, styles.footerText]}>
-              New to Aarini?{' '}
+              {t('login.noAccount')}{' '}
             </Text>
             <TouchableOpacity 
               onPress={() => navigation.navigate('Signup')}
               activeOpacity={0.7}
               accessibilityRole="link"
-              accessibilityLabel="Create Account"
+              accessibilityLabel={t('login.createAccount')}
             >
-              <Text style={styles.signupLink}>Create Account</Text>
+              <Text style={styles.signupLink}>{t('login.createAccount')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

@@ -9,9 +9,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Svg, { Rect, Polyline, Circle, Line, G } from 'react-native-svg';
-import { ArrowLeft, TrendingUp, Smile, Droplet, Activity } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { predictCycleLocally } from '../utils/cyclePrediction';
+import {
+  computeCycleLengths,
+  computePredictionAccuracy,
+  computeSymptomFrequency,
+  computeCycleVariance,
+  getPhaseAwareTips,
+} from '../utils/analyticsEngine';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
 
@@ -27,6 +36,7 @@ const MOOD_SCALE = {
 export const InsightsScreen = ({ navigation }) => {
   const { userToken } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { colors, typography, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -79,20 +89,33 @@ export const InsightsScreen = ({ navigation }) => {
 
   // ---- Derived analytics -------------------------------------------------
 
+  const cycleLengths = useMemo(() => computeCycleLengths(cycles), [cycles]);
+
   const avgCycleLength = useMemo(() => {
-    const lengths = cycles
-      .map((c) => c.cycle_length)
-      .filter((n) => typeof n === 'number' && n > 0);
-    if (!lengths.length) return null;
-    return Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length);
-  }, [cycles]);
+    if (!cycleLengths.length) return null;
+    return Math.round(cycleLengths.reduce((a, b) => a + b.length, 0) / cycleLengths.length);
+  }, [cycleLengths]);
+
+  const cycleVariance = useMemo(() => computeCycleVariance(cycleLengths), [cycleLengths]);
 
   const recentCycleLengths = useMemo(() => {
-    return cycles
-      .map((c) => c.cycle_length)
-      .filter((n) => typeof n === 'number' && n > 0)
-      .slice(-6);
-  }, [cycles]);
+    return cycleLengths.slice(-6).map((c) => c.length);
+  }, [cycleLengths]);
+
+  const predictionAccuracy = useMemo(
+    () => computePredictionAccuracy(cycles),
+    [cycles]
+  );
+
+  const prediction = useMemo(
+    () => predictCycleLocally(cycles),
+    [cycles]
+  );
+
+  const phaseAwareTips = useMemo(
+    () => getPhaseAwareTips(prediction.currentPhase || 'Luteal'),
+    [prediction.currentPhase]
+  );
 
   const moodSeries = useMemo(() => {
     return moods
@@ -101,20 +124,7 @@ export const InsightsScreen = ({ navigation }) => {
       .slice(-7);
   }, [moods]);
 
-  const symptomFrequency = useMemo(() => {
-    const counts = {};
-    symptoms.forEach((entry) => {
-      const list = Array.isArray(entry.symptoms) ? entry.symptoms : [];
-      list.forEach((sym) => {
-        const key = String(sym).toLowerCase();
-        counts[key] = (counts[key] || 0) + 1;
-      });
-    });
-    return Object.entries(counts)
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [symptoms]);
+  const symptomFrequency = useMemo(() => computeSymptomFrequency(symptoms), [symptoms]);
 
   // ---- Sub-components -----------------------------------------------------
 
@@ -262,28 +272,28 @@ export const InsightsScreen = ({ navigation }) => {
           ) : (
             <View style={styles.backButton} />
           )}
-          <Text style={[typography.h2, styles.headerTitle]}>Wellness Insights</Text>
+          <Text style={[typography.h2, styles.headerTitle]}>{t('insights.title')}</Text>
           <View style={styles.backButton} />
         </View>
 
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.primaryDark} />
-            <Text style={styles.loadingText}>Gathering your wellness data…</Text>
+            <Text style={styles.loadingText}>{t('insights.loading')}</Text>
           </View>
         ) : (
           <>
             {/* Cycle trend */}
             <SectionCard
               icon={<TrendingUp size={20} color={colors.primaryDark} />}
-              title="Cycle Trends"
+              title={t('insights.cycleTrends')}
               subtitle={
                 avgCycleLength
-                  ? `Average length: ${avgCycleLength} days`
-                  : 'Your cycle overview'
+                  ? t('insights.avgLength', { days: avgCycleLength })
+                  : t('insights.cycleOverview')
               }
               isEmpty={recentCycleLengths.length === 0}
-              emptyText="Log a few cycles and your trend will appear here."
+              emptyText={t('insights.noCycleData')}
             >
               <CycleBars data={recentCycleLengths} />
               <Text style={styles.caption}>
@@ -295,10 +305,10 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Mood tracking */}
             <SectionCard
               icon={<Smile size={20} color={colors.primaryDark} />}
-              title="Mood Patterns"
-              subtitle="Recent mood, scaled 1–5"
+              title={t('insights.moodPatterns')}
+              subtitle={t('insights.moodSubtitle')}
               isEmpty={moodSeries.length === 0}
-              emptyText="Track your mood daily to see patterns emerge."
+              emptyText={t('insights.noMoodData')}
             >
               <MoodLineChart data={moodSeries} />
               <Text style={styles.caption}>
@@ -310,12 +320,59 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Symptom frequency */}
             <SectionCard
               icon={<Activity size={20} color={colors.primaryDark} />}
-              title="Symptom Frequency"
-              subtitle="Your most logged symptoms"
+              title={t('insights.symptomFrequency')}
+              subtitle={t('insights.symptomSubtitle')}
               isEmpty={symptomFrequency.length === 0}
-              emptyText="Log symptoms and your most frequent ones will show here."
+              emptyText={t('insights.noSymptomData')}
             >
               <SymptomBarChart data={symptomFrequency} />
+            </SectionCard>
+
+            {/* Prediction accuracy */}
+            <SectionCard
+              icon={<Target size={20} color={colors.primaryDark} />}
+              title={t('insights.predictionAccuracy')}
+              subtitle={
+                predictionAccuracy.accuracy !== null
+                  ? t('insights.accuracyPercent', { percent: predictionAccuracy.accuracy })
+                  : t('insights.needsMoreCycles')
+              }
+              isEmpty={predictionAccuracy.entries.length === 0}
+              emptyText={t('insights.noAccuracyData')}
+            >
+              <View style={styles.accuracyList}>
+                {predictionAccuracy.entries.slice(-5).map((entry, idx) => (
+                  <View key={idx} style={styles.accuracyRow}>
+                    <View style={[styles.accuracyDot, { backgroundColor: entry.accurate ? colors.successDark : colors.errorDark }]} />
+                    <Text style={styles.accuracyLabel}>
+                      Cycle {entry.cycleIndex}
+                    </Text>
+                    <Text style={[styles.accuracyDelta, { color: entry.accurate ? colors.successDark : colors.errorDark }]}>
+                      {entry.deltaDays === 0 ? 'Exact' : `${entry.deltaDays > 0 ? '+' : ''}${entry.deltaDays}d`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              {cycleVariance !== null && (
+                <Text style={styles.caption}>
+                  {t('insights.cycleVariability', { days: cycleVariance })}
+                </Text>
+              )}
+            </SectionCard>
+
+            {/* Phase-aware tips */}
+            <SectionCard
+              icon={<Lightbulb size={20} color={colors.primaryDark} />}
+              title={prediction.currentPhase ? t('insights.phaseAwareTips', { phase: prediction.currentPhase }) : t('insights.wellnessTips')}
+              subtitle={prediction.cycleDay ? t('insights.cycleDay', { day: prediction.cycleDay }) : t('insights.personalizedPhase')}
+              isEmpty={false}
+            >
+              {phaseAwareTips.map((tip, idx) => (
+                <View key={idx} style={styles.tipRow}>
+                  <View style={styles.tipBullet} />
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))}
             </SectionCard>
 
             {/* Gentle note */}
@@ -324,8 +381,7 @@ export const InsightsScreen = ({ navigation }) => {
                 <Droplet size={16} color={colors.primaryDark} />
               </View>
               <Text style={styles.noteText}>
-                These insights are based only on what you've logged. The more you
-                track, the clearer your patterns become.
+                {t('insights.noteText')}
               </Text>
             </View>
           </>
@@ -466,5 +522,47 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
       flex: 1,
       marginLeft: spacing.sm,
       lineHeight: 18,
+    },
+    accuracyList: {
+      marginTop: spacing.xs,
+    },
+    accuracyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    accuracyDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.sm,
+    },
+    accuracyLabel: {
+      ...typography.bodySmall,
+      color: colors.textDark,
+      flex: 1,
+    },
+    accuracyDelta: {
+      ...typography.bodySmall,
+      fontWeight: '700',
+    },
+    tipRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing.sm,
+    },
+    tipBullet: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primaryDark,
+      marginTop: 6,
+      marginRight: spacing.sm,
+    },
+    tipText: {
+      ...typography.bodyMedium,
+      color: colors.textMedium,
+      flex: 1,
+      lineHeight: 20,
     },
   });

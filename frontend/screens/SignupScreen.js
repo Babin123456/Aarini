@@ -14,11 +14,13 @@ import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { Heart } from 'lucide-react-native';
 
 export const SignupScreen = ({ navigation }) => {
   const { signup, isLoading, error: authError } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { colors, typography } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   
@@ -67,21 +69,21 @@ export const SignupScreen = ({ navigation }) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
     if (!name.trim()) {
-      newErrors.name = 'Full name is required.';
+      newErrors.name = t('validation.nameRequired');
     }
     
     if (!email.trim()) {
-      newErrors.email = 'Email address is required.';
+      newErrors.email = t('validation.emailRequired');
     } else if (!emailRegex.test(email)) {
-      newErrors.email = 'Enter a valid email address.';
+      newErrors.email = t('validation.emailInvalid');
     }
     
     if (!password) {
-      newErrors.password = 'Password is required.';
+      newErrors.password = t('validation.passwordRequired');
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters.';
+      newErrors.password = t('validation.passwordLength');
     } else if (getPasswordStrength(password) === 'Weak') {
-      newErrors.password = 'Password is too weak. Add letters, mix cases, or use special characters.';
+      newErrors.password = t('validation.passwordWeak');
     }
     
     setErrors(newErrors);
@@ -94,15 +96,15 @@ export const SignupScreen = ({ navigation }) => {
     const cycleVal = parseInt(cycleLength, 10);
     
     if (!age.trim()) {
-      newErrors.age = 'Age is required.';
+      newErrors.age = t('validation.ageRequired');
     } else if (isNaN(ageVal) || ageVal < 10 || ageVal > 90) {
-      newErrors.age = 'Please enter a valid age.';
+      newErrors.age = t('validation.ageInvalid');
     }
     
     if (!cycleLength.trim()) {
-      newErrors.cycleLength = 'Cycle length is required.';
+      newErrors.cycleLength = t('validation.cycleLengthRequired');
     } else if (isNaN(cycleVal) || cycleVal < 15 || cycleVal > 60) {
-      newErrors.cycleLength = 'Enter a realistic cycle length (15-60 days).';
+      newErrors.cycleLength = t('validation.cycleLengthInvalid');
     }
     
     setErrors(newErrors);
@@ -163,12 +165,12 @@ export const SignupScreen = ({ navigation }) => {
               <Heart size={24} color={colors.secondaryDark} />
             </View>
             <Text style={[typography.h1, styles.title]}>
-              {step === 1 ? 'Create Account' : 'About Your Cycle'}
+              {step === 1 ? t('signup.title') : t('signup.cycleTitle')}
             </Text>
             <Text style={[typography.bodyLarge, styles.subtitle]}>
               {step === 1 
-                ? 'Join Aarini to understand and support your hormonal patterns.' 
-                : 'Help us calibrate predictions for period forecasts and insights.'
+                ? t('signup.subtitle') 
+                : t('signup.cycleSubtitle')
               }
             </Text>
           </View>
@@ -179,7 +181,7 @@ export const SignupScreen = ({ navigation }) => {
               // Step 1 Layout
               <View>
                 <InputField
-                  label="FULL NAME"
+                  label={t('signup.nameLabel')}
                   value={name}
                   onChangeText={(text) => {
                     setName(text);
@@ -191,7 +193,7 @@ export const SignupScreen = ({ navigation }) => {
                 />
 
                 <InputField
-                  label="EMAIL ADDRESS"
+                  label={t('signup.emailLabel')}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -203,7 +205,7 @@ export const SignupScreen = ({ navigation }) => {
                 />
 
                 <InputField
-                  label="PASSWORD"
+                  label={t('signup.passwordLabel')}
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -252,7 +254,7 @@ export const SignupScreen = ({ navigation }) => {
                 )}
 
                 <Button
-                  title="Next Step"
+                  title={t('signup.next')}
                   onPress={handleNextStep}
                   style={styles.submitButton}
                 />
@@ -290,13 +292,13 @@ export const SignupScreen = ({ navigation }) => {
 
                 <View style={styles.btnRow}>
                   <Button
-                    title="Back"
+                    title={t('signup.back')}
                     variant="outline"
                     onPress={handlePrevStep}
                     style={styles.halfBtn}
                   />
                   <Button
-                    title="Complete"
+                    title={t('signup.createAccount')}
                     onPress={handleRegister}
                     loading={isLoading}
                     style={styles.halfBtn}
@@ -309,15 +311,15 @@ export const SignupScreen = ({ navigation }) => {
           {/* Switch back to Login option */}
           <View style={styles.footer}>
             <Text style={[typography.bodyMedium, styles.footerText]}>
-              Already have an account?{' '}
+              {t('signup.haveAccount')}{' '}
             </Text>
             <TouchableOpacity 
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.7}
               accessibilityRole="link"
-              accessibilityLabel="Sign In"
+              accessibilityLabel={t('signup.signIn')}
             >
-              <Text style={styles.loginLink}>Sign In</Text>
+              <Text style={styles.loginLink}>{t('signup.signIn')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

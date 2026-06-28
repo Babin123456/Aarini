@@ -3,15 +3,17 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Globe } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { exportHealthData, shareExportFile } from '../services/exportService';
 
 export const SettingsScreen = ({ navigation }) => {
   const { userToken, user } = useAuth();
   const { theme } = useTheme();
   const { colors, typography, spacing, borderRadius, shadows } = theme;
+  const { t, language, setLanguage, supportedLanguages } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [exporting, setExporting] = useState(false);
@@ -25,7 +27,7 @@ export const SettingsScreen = ({ navigation }) => {
       const filePath = format === 'json' ? result.jsonPath : result.textPath;
       await shareExportFile(filePath);
     } catch (err) {
-      Alert.alert('Export failed', err.message || 'Could not export your data. Please try again.');
+      Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -42,7 +44,7 @@ export const SettingsScreen = ({ navigation }) => {
           ) : (
             <View style={styles.backButton} />
           )}
-          <Text style={[typography.h2, styles.headerTitle]}>Settings</Text>
+          <Text style={[typography.h2, styles.headerTitle]}>{t('settings.title')}</Text>
           <View style={styles.backButton} />
         </View>
 
@@ -52,13 +54,13 @@ export const SettingsScreen = ({ navigation }) => {
               <Download size={20} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>Export My Data</Text>
-              <Text style={styles.cardSubtitle}>Download your health history for backup or sharing with a doctor</Text>
+              <Text style={typography.h3}>{t('settings.exportData')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.exportSubtitle')}</Text>
             </View>
           </View>
 
           <Text style={styles.infoText}>
-            Your export includes all logged cycles, mood entries, and symptoms. Choose a format:
+            {t('settings.exportInfo')}
           </Text>
 
           <View style={styles.buttonRow}>
@@ -66,14 +68,14 @@ export const SettingsScreen = ({ navigation }) => {
               style={[styles.exportButton, styles.exportButtonPrimary]}
               onPress={() => handleExport('text')}
               disabled={exporting}
-              accessibilityLabel="Export as readable text file"
+              accessibilityLabel={t('settings.readableReport')}
             >
               {exporting ? (
                 <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
                 <>
                   <FileText size={18} color={colors.textOnPrimary} />
-                  <Text style={styles.exportButtonTextPrimary}>Readable Report</Text>
+                  <Text style={styles.exportButtonTextPrimary}>{t('settings.readableReport')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -82,14 +84,14 @@ export const SettingsScreen = ({ navigation }) => {
               style={[styles.exportButton, styles.exportButtonSecondary]}
               onPress={() => handleExport('json')}
               disabled={exporting}
-              accessibilityLabel="Export as JSON data file"
+              accessibilityLabel={t('settings.jsonExport')}
             >
               {exporting ? (
                 <ActivityIndicator size="small" color={colors.primaryDark} />
               ) : (
                 <>
                   <Share size={18} color={colors.primaryDark} />
-                  <Text style={styles.exportButtonTextSecondary}>JSON Export</Text>
+                  <Text style={styles.exportButtonTextSecondary}>{t('settings.jsonExport')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -97,9 +99,38 @@ export const SettingsScreen = ({ navigation }) => {
 
           {lastExport && (
             <Text style={styles.successText}>
-              Last export: {lastExport.recordCount} records exported successfully.
+              {t('settings.exportSuccess', { count: lastExport.recordCount })}
             </Text>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <Globe size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>{t('settings.language')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.languageSubtitle')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.languageOptions}>
+            {supportedLanguages.map((lang) => (
+              <TouchableOpacity
+                key={lang.code}
+                style={[styles.languageOption, language === lang.code && styles.languageOptionActive]}
+                onPress={() => setLanguage(lang.code)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: language === lang.code }}
+                accessibilityLabel={lang.label}
+              >
+                <Text style={[styles.languageOptionText, language === lang.code && styles.languageOptionTextActive]}>
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -125,4 +156,9 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
     exportButtonTextPrimary: { ...typography.buttonText, color: colors.textOnPrimary },
     exportButtonTextSecondary: { ...typography.buttonText, color: colors.primaryDark },
     successText: { ...typography.bodySmall, color: colors.successDark, marginTop: spacing.md, textAlign: 'center' },
+    languageOptions: { flexDirection: 'row', gap: spacing.sm },
+    languageOption: { flex: 1, paddingVertical: 12, borderRadius: borderRadius.md, backgroundColor: colors.mutedBackground, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' },
+    languageOptionActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+    languageOptionText: { ...typography.buttonText, color: colors.textMedium },
+    languageOptionTextActive: { color: colors.textOnPrimary },
   });
