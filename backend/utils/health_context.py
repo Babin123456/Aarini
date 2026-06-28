@@ -46,10 +46,11 @@ def build_health_context(uid, db=None, firebase_initialized=False):
 
 def _build_cycle_context(uid, db):
     """Fetch recent cycles and compute current phase info."""
+    from firebase_admin import firestore as fs_module
     cycles_ref = (
         db.collection("users").document(uid)
         .collection("cycles")
-        .order_by("startDate", direction="DESCENDING")
+        .order_by("startDate", direction=fs_module.Query.DESCENDING)
         .limit(6)
     )
     docs = list(cycles_ref.stream())
@@ -80,12 +81,13 @@ def _build_cycle_context(uid, db):
 def _build_symptom_context(uid, db):
     """Fetch recent symptoms (last 7 days)."""
     from datetime import date, timedelta
+    from firebase_admin import firestore as fs_module
     cutoff = (date.today() - timedelta(days=7)).isoformat()
 
     symptoms_ref = (
         db.collection("users").document(uid)
         .collection("symptoms")
-        .order_by("date", direction="DESCENDING")
+        .order_by("date", direction=fs_module.Query.DESCENDING)
         .limit(10)
     )
     docs = list(symptoms_ref.stream())
@@ -109,12 +111,13 @@ def _build_symptom_context(uid, db):
 def _build_mood_context(uid, db):
     """Fetch recent mood entries (last 3 days)."""
     from datetime import date, timedelta
+    from firebase_admin import firestore as fs_module
     cutoff = (date.today() - timedelta(days=3)).isoformat()
 
     moods_ref = (
         db.collection("users").document(uid)
         .collection("moods")
-        .order_by("date", direction="DESCENDING")
+        .order_by("date", direction=fs_module.Query.DESCENDING)
         .limit(5)
     )
 
