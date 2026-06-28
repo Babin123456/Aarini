@@ -154,6 +154,7 @@ export default {
     languageSubtitle: 'अपनी पसंदीदा भाषा चुनें',
     deleteAccount: 'खाता हटाएं',
     deleteWarning: 'अपना खाता और सभी स्वास्थ्य डेटा स्थायी रूप से हटाएं।',
+    deleteSuccess: 'आपका खाता और सभी डेटा हटा दिया गया है।',
   },
   forgotPassword: {
     title: 'पासवर्ड रीसेट करें',

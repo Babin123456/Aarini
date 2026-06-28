@@ -154,6 +154,7 @@ export default {
     languageSubtitle: 'Choose your preferred language',
     deleteAccount: 'Delete Account',
     deleteWarning: 'Permanently delete your account and all health data.',
+    deleteSuccess: 'Your account and all data have been removed.',
   },
   forgotPassword: {
     title: 'Reset Password',

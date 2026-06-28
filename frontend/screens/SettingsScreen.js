@@ -38,12 +38,12 @@ export const SettingsScreen = ({ navigation }) => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all health data (cycles, symptoms, moods). This action cannot be undone.',
+      t('settings.deleteAccount'),
+      t('settings.deleteWarning'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete Permanently',
+          text: t('settings.deleteAccount'),
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -63,11 +63,11 @@ export const SettingsScreen = ({ navigation }) => {
               if (!resp.ok) {
                 throw new Error(data.error || 'Deletion failed');
               }
-              Alert.alert('Account Deleted', 'Your account and all data have been removed.', [
+              Alert.alert(t('common.success'), t('settings.deleteSuccess'), [
                 { text: 'OK', onPress: () => logout() },
               ]);
             } catch (err) {
-              Alert.alert('Error', err.message || 'Could not delete account. Please try again.');
+              Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
             } finally {
               setDeleting(false);
             }
