@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Bell, CalendarDays, ChevronLeft, ChevronRight, Droplets, LogOut, Plus, Sparkles,
+  Bell, CalendarDays, ChevronLeft, ChevronRight, Droplets, LogOut, Plus, Settings, Sparkles,
 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -14,8 +15,8 @@ import {
   dateInRange, parseLocalDate, predictCycleLocally, toDateKey,
 } from '../utils/cyclePrediction';
 import {
-  cancelPredictionNotifications, schedulePredictionNotifications,
-} from '../services/predictionNotifications';
+  cancelAllScheduledNotifications, rescheduleAfterCycleLog, scheduleAllNotifications,
+} from '../services/notificationScheduler';
 import { syncCycles } from '../services/syncService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
@@ -33,6 +34,7 @@ export const CycleTrackerScreen = () => {
   const { user, userToken, logout } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const navigation = useNavigation();
   const { colors, typography, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const storageKey = `cycles:${user?.uid || 'local'}`;
@@ -86,7 +88,7 @@ export const CycleTrackerScreen = () => {
 
   useEffect(() => {
     if (notificationsEnabled && prediction?.nextPeriodStart) {
-      schedulePredictionNotifications(prediction);
+      scheduleAllNotifications(prediction);
     }
   }, [notificationsEnabled, prediction]);
 
@@ -112,8 +114,17 @@ export const CycleTrackerScreen = () => {
       }
       const data = await response.json();
       await updateState([...cycles, data.cycle || entry], data.prediction);
+      const updatedPrediction = data.prediction || predictCycleLocally(
+        [...cycles, data.cycle || entry].sort((a, b) => b.startDate.localeCompare(a.startDate)),
+        user?.cycleLength || 28,
+      );
+      if (notificationsEnabled) rescheduleAfterCycleLog(updatedPrediction);
     } catch {
-      await updateState([...cycles, entry]);
+      const newCycles = [...cycles, entry].sort((a, b) => b.startDate.localeCompare(a.startDate));
+      await updateState(newCycles);
+      if (notificationsEnabled) {
+        rescheduleAfterCycleLog(predictCycleLocally(newCycles, user?.cycleLength || 28));
+      }
     } finally {
       setSaving(false);
       setModalVisible(false);
@@ -126,10 +137,10 @@ export const CycleTrackerScreen = () => {
     setNotificationsEnabled(enabled);
     await AsyncStorage.setItem('predictionNotificationsEnabled', String(enabled));
     if (enabled) {
-      const scheduled = await schedulePredictionNotifications(prediction);
+      const scheduled = await scheduleAllNotifications(prediction);
       if (!scheduled) Alert.alert('Notifications unavailable', 'Enable notification permission in device settings.');
     } else {
-      await cancelPredictionNotifications();
+      await cancelAllScheduledNotifications();
     }
   };
 
@@ -263,6 +274,17 @@ export const CycleTrackerScreen = () => {
             accessibilityRole="switch"
           />
         </View>
+        {notificationsEnabled && (
+          <TouchableOpacity
+            style={styles.prefsLink}
+            onPress={() => navigation.navigate('NotificationPrefs', { prediction })}
+            accessibilityRole="button"
+            accessibilityLabel="Customize notification preferences"
+          >
+            <Settings size={16} color={colors.primaryDark} />
+            <Text style={styles.prefsLinkText}>Customize reminders</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.disclaimer}>Estimates can vary and should not be used as birth control or medical diagnosis.</Text>
       </ScrollView>
 
@@ -333,6 +355,8 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
   notificationCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.cardBackground, borderRadius: borderRadius.md, padding: spacing.md },
   bell: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   notificationTitle: { ...typography.bodyMedium, color: colors.textDark, fontWeight: '800', marginBottom: 2 },
+  prefsLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  prefsLinkText: { ...typography.bodySmall, color: colors.primaryDark, fontWeight: '700' },
   disclaimer: { ...typography.caption, color: colors.textLight, textAlign: 'center', paddingHorizontal: spacing.md, marginTop: spacing.md },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: colors.cardBackground, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: spacing.lg, paddingBottom: spacing.xxl },

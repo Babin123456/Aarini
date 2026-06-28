@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback, use
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import { isOnboardingComplete } from '../utils/onboardingStorage';
+import { requestNotificationPermission } from '../services/notificationScheduler';
 
 const AuthContext = createContext();
 
@@ -121,6 +122,7 @@ export const AuthProvider = ({ children }) => {
 
       const onboarded = await isOnboardingComplete();
       setNeedsOnboarding(!onboarded);
+      requestNotificationPermission();
       return true;
     } catch (e) {
       console.warn('API connection failed, falling back to mock authentication:', e.message);
@@ -143,6 +145,7 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem('lastActivity', now);
         const onboarded = await isOnboardingComplete();
         setNeedsOnboarding(!onboarded);
+        requestNotificationPermission();
         return true;
       } else {
         setError(e.message || 'Server error. For development, use email test@aarini.com and password password123.');
