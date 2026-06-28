@@ -1,13 +1,16 @@
 import os
 import logging
+import time
+import json
 from datetime import date
 from functools import wraps
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
 from middleware.validation import validate_request
 from utils.sanitize import sanitize_for_ai
+from utils.health_context import build_health_context, invalidate_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -61,6 +64,44 @@ try:
         )
 except Exception as e:
     logger.error(f"Error initializing Firebase Admin: {str(e)}")
+
+# --- Gemini Model Initialization (cached singleton) ---
+_gemini_model = None
+SYSTEM_INSTRUCTION = (
+    "You are Aarini, an extremely empathetic, professional, and supportive AI wellness assistant "
+    "specializing in women's hormonal wellness, menstrual health, and reproductive biology. "
+    "Use warm, reassuring language. Provide scientific, easy-to-understand educational explanations "
+    "(e.g., explaining hormones like progesterone and estrogen simply). "
+    "You MUST NOT diagnose illnesses, prescribe medications, or claim to replace qualified medical practitioners. "
+    "For severe symptoms (e.g., extreme debilitating pain, heavy hemorrhage), always gently encourage the "
+    "user to seek guidance from an OB-GYN or primary care physician. "
+    "Always include a concise, friendly medical disclaimer at the absolute end of your response."
+)
+
+
+def get_gemini_model():
+    """Lazy-initialize and return the cached Gemini model instance."""
+    global _gemini_model
+    if _gemini_model is not None:
+        return _gemini_model
+
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        return None
+
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=gemini_key)
+        _gemini_model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            generation_config={"temperature": 0.7},
+            system_instruction=SYSTEM_INSTRUCTION,
+        )
+        logger.info("Gemini model initialized and cached.")
+        return _gemini_model
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini model: {e}")
+        return None
 
 
 def authenticated_user(handler):
@@ -255,6 +296,7 @@ def add_cycle():
         }
         user_cycles = mock_cycles.setdefault(uid, [])
         user_cycles.append(cycle)
+        invalidate_cache(uid)
         return jsonify({
             "message": "Cycle logged successfully (Mock Mode)",
             "cycle": cycle,
@@ -272,6 +314,7 @@ def add_cycle():
             "loggedAt": firestore.SERVER_TIMESTAMP
         }
         cycle_ref.set(cycle_data)
+        invalidate_cache(uid)
         return jsonify({"message": "Cycle data saved", "id": cycle_ref.id}), 201
     except Exception as e:
         logger.error(f"Error saving cycle: {str(e)}")
@@ -413,70 +456,157 @@ def get_symptoms():
 # ----------------- AI HEALTH CHAT ENDPOINTS -----------------
 
 @app.route("/chat", methods=["POST"])
+@authenticated_user
 @validate_request({
     "message": {"type": "string", "required": True, "min_length": 1, "max_length": 2000},
 })
 def chat():
     """
-    Interacts with Gemini API securely for empathetic, women's wellness explanations.
-    Expected Payload: { message }
+    Interacts with Gemini API for empathetic, context-aware wellness explanations.
+    Supports multi-turn via optional 'history' array in request body.
+    Expected Payload: { message, history?: [{role, parts}] }
     """
     data = request.get_json() or {}
     user_message = data.get("message")
+    history = data.get("history", [])
+    uid = request.user_id
 
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
 
-    logger.info(f"AI Chat request: {user_message[:50]}...")
+    logger.info(f"AI Chat request from {uid}: {user_message[:50]}...")
 
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_key:
-        # Fallback informative mock response
+    model = get_gemini_model()
+    if not model:
+        health_ctx = build_health_context(uid, db if firebase_initialized else None, firebase_initialized)
         return jsonify({
             "response": (
-                "👋 Hello! I am Aarini, your empathetic hormonal wellness guide.\n\n"
-                "To get fully personalized answers using Google's advanced Gemini AI, "
-                "please insert your `GEMINI_API_KEY` into our backend `.env` file.\n\n"
-                "For now, here is a general wellness tip: Eating magnesium-rich foods like dark chocolate, "
-                "bananas, or spinach can naturally help relax muscles and ease menstrual cramps. "
-                "Remember to drink plenty of warm water!"
+                "Hello! I am Aarini, your empathetic hormonal wellness guide.\n\n"
+                + (f"Based on your data: {health_ctx}\n\n" if health_ctx else "")
+                + "To get fully personalized AI answers, configure the GEMINI_API_KEY.\n\n"
+                "General tip: Eating magnesium-rich foods like dark chocolate, bananas, or spinach "
+                "can naturally help relax muscles and ease menstrual cramps."
             ),
-            "disclaimer": "Disclaimer: I am an AI educational companion. My responses are for informational purposes only and do not replace professional medical advice. Always consult a physician for health concerns."
+            "disclaimer": "Disclaimer: I am an AI educational companion. My responses are for informational purposes only and do not replace professional medical advice.",
+            "phase": None,
         }), 200
 
     try:
-        import google.generativeai as genai
+        health_ctx = build_health_context(uid, db if firebase_initialized else None, firebase_initialized)
 
-        genai.configure(api_key=gemini_key)
-        
-        # System instructions to restrict answers to hormonal health, enforce disclaimers, and remain compassionate
-        system_instruction = (
-            "You are Aarini, an extremely empathetic, professional, and supportive AI wellness assistant "
-            "specializing in women's hormonal wellness, menstrual health, and reproductive biology. "
-            "Use warm, reassuring language. Provide scientific, easy-to-understand educational explanations "
-            "(e.g., explaining hormones like progesterone and estrogen simply). "
-            "You MUST NOT diagnose illnesses, prescribe medications, or claim to replace qualified medical practitioners. "
-            "For severe symptoms (e.g., extreme debilitating pain, heavy hemorrhage), always gently encourage the "
-            "user to seek guidance from an OB-GYN or primary care physician. "
-            "Always include a concise, friendly medical disclaimer at the absolute end of your response."
-        )
+        context_messages = []
+        if health_ctx:
+            context_messages.append({
+                "role": "user",
+                "parts": [f"[SYSTEM CONTEXT - do not repeat this to the user] {health_ctx}"]
+            })
+            context_messages.append({
+                "role": "model",
+                "parts": ["Understood. I have your current health context and will personalize my responses accordingly."]
+            })
 
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config={"temperature": 0.7},
-            system_instruction=system_instruction
-        )
+        chat_history = context_messages + history[-10:]
 
-        response = model.generate_content(sanitize_for_ai(user_message)[0])
-        
+        chat_session = model.start_chat(history=chat_history)
+        response = chat_session.send_message(sanitize_for_ai(user_message)[0])
+
         return jsonify({
             "response": response.text,
-            "disclaimer": "Disclaimer: Aarini is an AI educational assistant. Our suggestions are informative and do not constitute formal medical diagnosis."
+            "disclaimer": "Disclaimer: Aarini is an AI educational assistant. Our suggestions are informative and do not constitute formal medical diagnosis.",
+            "phase": _extract_phase_from_context(health_ctx),
         }), 200
 
     except Exception as e:
         logger.error(f"Gemini API error: {str(e)}")
-        return jsonify({"error": "Failed to generate AI response. Details: " + str(e)}), 500
+        return jsonify({"error": "Failed to generate AI response. Please try again."}), 500
+
+
+@app.route("/chat/stream", methods=["POST"])
+@authenticated_user
+def chat_stream():
+    """
+    Streaming AI chat via Server-Sent Events.
+    Tokens are sent progressively as SSE data events.
+    Final event contains the complete response.
+    Expected Payload: { message, history?: [{role, parts}] }
+    """
+    data = request.get_json() or {}
+    user_message = data.get("message", "").strip()
+    history = data.get("history", [])
+    uid = request.user_id
+
+    if not user_message or len(user_message) > 2000:
+        return jsonify({"error": "Message is required (1-2000 characters)"}), 400
+
+    model = get_gemini_model()
+    if not model:
+        def mock_stream():
+            chunks = [
+                "Hello! I am Aarini, your wellness guide. ",
+                "To unlock streaming AI responses, ",
+                "please configure the GEMINI_API_KEY. ",
+                "Tip: Warm compresses on the lower abdomen can help ease cramps.",
+            ]
+            for chunk in chunks:
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                time.sleep(0.3)
+            full = "".join(chunks)
+            yield f"data: {json.dumps({'done': True, 'full_response': full, 'disclaimer': 'AI educational companion. Not medical advice.'})}\n\n"
+
+        return Response(mock_stream(), mimetype="text/event-stream", headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        })
+
+    def generate():
+        try:
+            health_ctx = build_health_context(uid, db if firebase_initialized else None, firebase_initialized)
+
+            context_messages = []
+            if health_ctx:
+                context_messages.append({
+                    "role": "user",
+                    "parts": [f"[SYSTEM CONTEXT - do not repeat this to the user] {health_ctx}"]
+                })
+                context_messages.append({
+                    "role": "model",
+                    "parts": ["Understood. I have your current health context and will personalize my responses accordingly."]
+                })
+
+            chat_history = context_messages + history[-10:]
+            chat_session = model.start_chat(history=chat_history)
+
+            response = chat_session.send_message(
+                sanitize_for_ai(user_message)[0],
+                stream=True,
+            )
+
+            full_text = ""
+            for chunk in response:
+                if chunk.text:
+                    full_text += chunk.text
+                    yield f"data: {json.dumps({'chunk': chunk.text})}\n\n"
+
+            yield f"data: {json.dumps({'done': True, 'full_response': full_text, 'disclaimer': 'Aarini is an AI educational assistant. Not medical advice.', 'phase': _extract_phase_from_context(health_ctx)})}\n\n"
+
+        except Exception as e:
+            logger.error(f"Streaming Gemini error: {str(e)}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
+
+
+def _extract_phase_from_context(ctx):
+    """Extract current phase from the context string if present."""
+    if not ctx:
+        return None
+    for phase in ("Menstrual", "Follicular", "Ovulation", "Luteal"):
+        if f"Current phase: {phase}" in ctx:
+            return phase
+    return None
 
 
 # ----------------- WELLNESS INSIGHTS ENDPOINTS -----------------
