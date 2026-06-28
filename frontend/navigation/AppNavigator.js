@@ -16,6 +16,7 @@ import { MoodTrackingScreen } from '../screens/MoodTrackingScreen';
 import { SymptomLogScreen } from '../screens/SymptomLogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ShareScreen } from '../screens/ShareScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,8 +76,9 @@ const AppTabs = () => {
   );
 };
 
-const AppStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+const AppStack = ({ initialRoute = 'Tabs' }) => (
+  <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
     <Stack.Screen name="Tabs" component={AppTabs} />
     <Stack.Screen name="SymptomLog" component={SymptomLogScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
@@ -85,7 +87,7 @@ const AppStack = () => (
 );
 
 export const AppNavigator = () => {
-  const { userToken, isLoading } = useAuth();
+  const { userToken, isLoading, needsOnboarding } = useAuth();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigationTheme = useMemo(() => ({
@@ -106,7 +108,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer theme={navigationTheme}>
-      {userToken ? <AppStack /> : <AuthStack />}
+      {userToken ? <AppStack initialRoute={needsOnboarding ? 'Onboarding' : 'Tabs'} /> : <AuthStack />}
     </NavigationContainer>
   );
 };

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
+import { isOnboardingComplete } from '../utils/onboardingStorage';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const lastActivityRef = useRef(Date.now());
 
   const clearSession = useCallback(async (expired = false) => {
@@ -59,6 +61,8 @@ export const AuthProvider = ({ children }) => {
             setUserToken(storedToken);
             setUser(JSON.parse(storedUser));
             await updateActivity();
+            const onboarded = await isOnboardingComplete();
+            setNeedsOnboarding(!onboarded);
           }
         }
       } catch (e) {
@@ -114,6 +118,9 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('tokenIssuedAt', now);
       await AsyncStorage.setItem('lastActivity', now);
+
+      const onboarded = await isOnboardingComplete();
+      setNeedsOnboarding(!onboarded);
       return true;
     } catch (e) {
       console.warn('API connection failed, falling back to mock authentication:', e.message);
@@ -134,6 +141,8 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         await AsyncStorage.setItem('tokenIssuedAt', now);
         await AsyncStorage.setItem('lastActivity', now);
+        const onboarded = await isOnboardingComplete();
+        setNeedsOnboarding(!onboarded);
         return true;
       } else {
         setError(e.message || 'Server error. For development, use email test@aarini.com and password password123.');
@@ -184,6 +193,7 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('tokenIssuedAt', now);
       await AsyncStorage.setItem('lastActivity', now);
+      setNeedsOnboarding(true);
       return true;
     } catch (e) {
       console.warn('Registration backend offline, simulating local signup:', e.message);
@@ -204,6 +214,7 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('tokenIssuedAt', now);
       await AsyncStorage.setItem('lastActivity', now);
+      setNeedsOnboarding(true);
       return true;
     } finally {
       setIsLoading(false);
@@ -236,8 +247,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const completeOnboarding = useCallback(() => {
+    setNeedsOnboarding(false);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isLoading, userToken, user, error, sessionExpired, login, signup, logout, resetPassword, updateActivity }}>
+    <AuthContext.Provider value={{ isLoading, userToken, user, error, sessionExpired, needsOnboarding, login, signup, logout, resetPassword, updateActivity, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );
