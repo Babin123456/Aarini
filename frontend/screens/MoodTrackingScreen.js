@@ -13,6 +13,7 @@ import { ArrowLeft, Smile, Frown, Meh, ThumbsUp, ThumbsDown, Calendar, TrendingU
 import { secureGetItem, secureSetItem } from '../utils/secureStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const MOODS = [
   { key: 'great', label: 'Great', value: 5, Icon: ThumbsUp },
@@ -30,6 +31,7 @@ const getDateKey = (d = new Date()) =>
 export const MoodTrackingScreen = ({ navigation }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.uid || 'local';
   const { colors, typography, spacing, borderRadius, shadows } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -176,7 +178,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
           ) : (
             <View style={styles.backButton} />
           )}
-          <Text style={[typography.h2, styles.headerTitle]}>Daily Mood</Text>
+          <Text style={[typography.h2, styles.headerTitle]}>{t('moodTracking.title')}</Text>
           <View style={styles.backButton} />
         </View>
 
@@ -187,7 +189,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
               <Smile size={20} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>How are you feeling today?</Text>
+              <Text style={typography.h3}>{t('moodTracking.howFeeling')}</Text>
               <Text style={styles.cardSubtitle}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
             </View>
           </View>
@@ -233,8 +235,8 @@ export const MoodTrackingScreen = ({ navigation }) => {
               <TrendingUp size={20} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>7-Day Trend</Text>
-              <Text style={styles.cardSubtitle}>Your mood over the past week</Text>
+              <Text style={typography.h3}>{t('moodTracking.trend')}</Text>
+              <Text style={styles.cardSubtitle}>{t('moodTracking.trendSubtitle')}</Text>
             </View>
           </View>
           {filledSeries.length >= 2 ? (
@@ -248,7 +250,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Log your mood for at least 2 days to see your trend.</Text>
+              <Text style={styles.emptyText}>{t('moodTracking.noTrend')}</Text>
             </View>
           )}
         </View>
@@ -261,21 +263,21 @@ export const MoodTrackingScreen = ({ navigation }) => {
                 <Calendar size={20} color={colors.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={typography.h3}>Mood Insights</Text>
+                <Text style={typography.h3}>{t('moodTracking.insights')}</Text>
               </View>
             </View>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Days logged</Text>
+                <Text style={styles.statLabel}>{t('moodTracking.daysLogged')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.average}</Text>
-                <Text style={styles.statLabel}>Avg (1-5)</Text>
+                <Text style={styles.statLabel}>{t('moodTracking.average')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { textTransform: 'capitalize' }]}>{stats.mostCommon}</Text>
-                <Text style={styles.statLabel}>Most common</Text>
+                <Text style={styles.statLabel}>{t('moodTracking.mostCommon')}</Text>
               </View>
             </View>
           </View>
@@ -283,7 +285,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
 
         {/* Recent history */}
         <View style={styles.card}>
-          <Text style={[typography.h3, { marginBottom: spacing.md }]}>Recent Entries</Text>
+          <Text style={[typography.h3, { marginBottom: spacing.md }]}>{t('moodTracking.recentEntries')}</Text>
           {Object.entries(entries)
             .sort(([a], [b]) => b.localeCompare(a))
             .slice(0, 7)
@@ -301,7 +303,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
               );
             })}
           {Object.keys(entries).length === 0 && (
-            <Text style={styles.emptyText}>No entries yet. Start by logging today's mood above.</Text>
+            <Text style={styles.emptyText}>{t('moodTracking.noEntries')}</Text>
           )}
         </View>
       </ScrollView>

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import {
   dateInRange, parseLocalDate, predictCycleLocally, toDateKey,
 } from '../utils/cyclePrediction';
@@ -18,13 +19,6 @@ import {
 import { syncCycles } from '../services/syncService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const PHASE_COPY = {
-  Menstrual: 'Your period is estimated to be active. Rest and hydration may feel especially helpful.',
-  Follicular: 'Estrogen typically rises as your body prepares for ovulation.',
-  Ovulation: 'You are in your estimated ovulation window. Predictions are not contraception.',
-  Luteal: 'Progesterone typically rises as your body approaches the next period.',
-};
 
 const buildMonth = (cursor) => {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
@@ -38,6 +32,7 @@ const buildMonth = (cursor) => {
 export const CycleTrackerScreen = () => {
   const { user, userToken, logout } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { colors, typography, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const storageKey = `cycles:${user?.uid || 'local'}`;
@@ -182,7 +177,7 @@ export const CycleTrackerScreen = () => {
             <Text style={[styles.muted, styles.center]}>Log start and end dates to unlock phase and period predictions.</Text>
             <TouchableOpacity style={styles.primaryButton} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel="Log period">
               <Plus size={18} color={colors.white} />
-              <Text style={styles.primaryButtonText}>Log period</Text>
+              <Text style={styles.primaryButtonText}>{t('cycleTracker.logPeriod')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -195,7 +190,7 @@ export const CycleTrackerScreen = () => {
                   <Text style={[typography.h1, styles.phaseTitle]}>{phase}</Text>
                 </View>
               </View>
-              <Text style={styles.phaseCopy}>{PHASE_COPY[phase]}</Text>
+              <Text style={styles.phaseCopy}>{t(`cycleTracker.phases.${phase}`)}</Text>
             </View>
 
             <View style={styles.metrics}>
@@ -234,7 +229,7 @@ export const CycleTrackerScreen = () => {
             </TouchableOpacity>
           </View>
           <View style={styles.weekRow}>
-            {WEEKDAYS.map((day, index) => <Text key={`${day}-${index}`} style={styles.weekday}>{day}</Text>)}
+            {t('cycleTracker.weekdays').map((day, index) => <Text key={`${day}-${index}`} style={styles.weekday}>{day}</Text>)}
           </View>
           <View style={styles.dayGrid}>
             {calendarDays.map((date, index) => (
@@ -284,7 +279,7 @@ export const CycleTrackerScreen = () => {
               <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Save period'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Cancel">
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('cycleTracker.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

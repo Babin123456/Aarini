@@ -3,9 +3,10 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Globe, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { exportHealthData, shareExportFile } from '../services/exportService';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
@@ -14,6 +15,7 @@ export const SettingsScreen = ({ navigation }) => {
   const { userToken, user, logout } = useAuth();
   const { theme } = useTheme();
   const { colors, typography, spacing, borderRadius, shadows } = theme;
+  const { t, language, setLanguage, supportedLanguages } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [exporting, setExporting] = useState(false);
@@ -28,7 +30,7 @@ export const SettingsScreen = ({ navigation }) => {
       const filePath = format === 'json' ? result.jsonPath : result.textPath;
       await shareExportFile(filePath);
     } catch (err) {
-      Alert.alert('Export failed', err.message || 'Could not export your data. Please try again.');
+      Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -36,12 +38,12 @@ export const SettingsScreen = ({ navigation }) => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all health data (cycles, symptoms, moods). This action cannot be undone.',
+      t('settings.deleteAccount'),
+      t('settings.deleteWarning'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete Permanently',
+          text: t('settings.deleteAccount'),
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -61,11 +63,11 @@ export const SettingsScreen = ({ navigation }) => {
               if (!resp.ok) {
                 throw new Error(data.error || 'Deletion failed');
               }
-              Alert.alert('Account Deleted', 'Your account and all data have been removed.', [
+              Alert.alert(t('common.success'), t('settings.deleteSuccess'), [
                 { text: 'OK', onPress: () => logout() },
               ]);
             } catch (err) {
-              Alert.alert('Error', err.message || 'Could not delete account. Please try again.');
+              Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
             } finally {
               setDeleting(false);
             }
@@ -86,7 +88,7 @@ export const SettingsScreen = ({ navigation }) => {
           ) : (
             <View style={styles.backButton} />
           )}
-          <Text style={[typography.h2, styles.headerTitle]}>Settings</Text>
+          <Text style={[typography.h2, styles.headerTitle]}>{t('settings.title')}</Text>
           <View style={styles.backButton} />
         </View>
 
@@ -96,13 +98,13 @@ export const SettingsScreen = ({ navigation }) => {
               <Download size={20} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>Export My Data</Text>
-              <Text style={styles.cardSubtitle}>Download your health history for backup or sharing with a doctor</Text>
+              <Text style={typography.h3}>{t('settings.exportData')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.exportSubtitle')}</Text>
             </View>
           </View>
 
           <Text style={styles.infoText}>
-            Your export includes all logged cycles, mood entries, and symptoms. Choose a format:
+            {t('settings.exportInfo')}
           </Text>
 
           <View style={styles.buttonRow}>
@@ -110,14 +112,14 @@ export const SettingsScreen = ({ navigation }) => {
               style={[styles.exportButton, styles.exportButtonPrimary]}
               onPress={() => handleExport('text')}
               disabled={exporting}
-              accessibilityLabel="Export as readable text file"
+              accessibilityLabel={t('settings.readableReport')}
             >
               {exporting ? (
                 <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
                 <>
                   <FileText size={18} color={colors.textOnPrimary} />
-                  <Text style={styles.exportButtonTextPrimary}>Readable Report</Text>
+                  <Text style={styles.exportButtonTextPrimary}>{t('settings.readableReport')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -126,14 +128,14 @@ export const SettingsScreen = ({ navigation }) => {
               style={[styles.exportButton, styles.exportButtonSecondary]}
               onPress={() => handleExport('json')}
               disabled={exporting}
-              accessibilityLabel="Export as JSON data file"
+              accessibilityLabel={t('settings.jsonExport')}
             >
               {exporting ? (
                 <ActivityIndicator size="small" color={colors.primaryDark} />
               ) : (
                 <>
                   <Share size={18} color={colors.primaryDark} />
-                  <Text style={styles.exportButtonTextSecondary}>JSON Export</Text>
+                  <Text style={styles.exportButtonTextSecondary}>{t('settings.jsonExport')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -141,9 +143,38 @@ export const SettingsScreen = ({ navigation }) => {
 
           {lastExport && (
             <Text style={styles.successText}>
-              Last export: {lastExport.recordCount} records exported successfully.
+              {t('settings.exportSuccess', { count: lastExport.recordCount })}
             </Text>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <Globe size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>{t('settings.language')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.languageSubtitle')}</Text>
+            </View>
+          </View>
+
+          <View style={styles.languageOptions}>
+            {supportedLanguages.map((lang) => (
+              <TouchableOpacity
+                key={lang.code}
+                style={[styles.languageOption, language === lang.code && styles.languageOptionActive]}
+                onPress={() => setLanguage(lang.code)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: language === lang.code }}
+                accessibilityLabel={lang.label}
+              >
+                <Text style={[styles.languageOptionText, language === lang.code && styles.languageOptionTextActive]}>
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={[styles.card, styles.dangerCard]}>
@@ -152,8 +183,8 @@ export const SettingsScreen = ({ navigation }) => {
               <Trash2 size={20} color={colors.error || '#DC2626'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>Delete Account</Text>
-              <Text style={styles.cardSubtitle}>Permanently remove your account and all stored data</Text>
+              <Text style={typography.h3}>{t('settings.deleteAccount')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.deleteWarning')}</Text>
             </View>
           </View>
 
@@ -173,7 +204,7 @@ export const SettingsScreen = ({ navigation }) => {
             ) : (
               <>
                 <Trash2 size={18} color="#FFFFFF" />
-                <Text style={styles.deleteButtonText}>Delete My Account</Text>
+                <Text style={styles.deleteButtonText}>{t('settings.deleteAccount')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -202,6 +233,11 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
     exportButtonTextPrimary: { ...typography.buttonText, color: colors.textOnPrimary },
     exportButtonTextSecondary: { ...typography.buttonText, color: colors.primaryDark },
     successText: { ...typography.bodySmall, color: colors.successDark, marginTop: spacing.md, textAlign: 'center' },
+    languageOptions: { flexDirection: 'row', gap: spacing.sm },
+    languageOption: { flex: 1, paddingVertical: 12, borderRadius: borderRadius.md, backgroundColor: colors.mutedBackground, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' },
+    languageOptionActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
+    languageOptionText: { ...typography.buttonText, color: colors.textMedium },
+    languageOptionTextActive: { color: colors.textOnPrimary },
     dangerCard: { borderWidth: 1, borderColor: colors.error || '#FCA5A5' },
     dangerIcon: { backgroundColor: (colors.error || '#DC2626') + '15' },
     deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: 14, borderRadius: borderRadius.md, backgroundColor: colors.error || '#DC2626' },

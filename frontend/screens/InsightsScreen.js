@@ -12,6 +12,7 @@ import Svg, { Rect, Polyline, Circle, Line, G } from 'react-native-svg';
 import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { predictCycleLocally } from '../utils/cyclePrediction';
 import {
   computeCycleLengths,
@@ -35,6 +36,7 @@ const MOOD_SCALE = {
 export const InsightsScreen = ({ navigation }) => {
   const { userToken } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { colors, typography, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -270,28 +272,28 @@ export const InsightsScreen = ({ navigation }) => {
           ) : (
             <View style={styles.backButton} />
           )}
-          <Text style={[typography.h2, styles.headerTitle]}>Wellness Insights</Text>
+          <Text style={[typography.h2, styles.headerTitle]}>{t('insights.title')}</Text>
           <View style={styles.backButton} />
         </View>
 
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.primaryDark} />
-            <Text style={styles.loadingText}>Gathering your wellness data…</Text>
+            <Text style={styles.loadingText}>{t('insights.loading')}</Text>
           </View>
         ) : (
           <>
             {/* Cycle trend */}
             <SectionCard
               icon={<TrendingUp size={20} color={colors.primaryDark} />}
-              title="Cycle Trends"
+              title={t('insights.cycleTrends')}
               subtitle={
                 avgCycleLength
-                  ? `Average length: ${avgCycleLength} days`
-                  : 'Your cycle overview'
+                  ? t('insights.avgLength', { days: avgCycleLength })
+                  : t('insights.cycleOverview')
               }
               isEmpty={recentCycleLengths.length === 0}
-              emptyText="Log a few cycles and your trend will appear here."
+              emptyText={t('insights.noCycleData')}
             >
               <CycleBars data={recentCycleLengths} />
               <Text style={styles.caption}>
@@ -303,10 +305,10 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Mood tracking */}
             <SectionCard
               icon={<Smile size={20} color={colors.primaryDark} />}
-              title="Mood Patterns"
-              subtitle="Recent mood, scaled 1–5"
+              title={t('insights.moodPatterns')}
+              subtitle={t('insights.moodSubtitle')}
               isEmpty={moodSeries.length === 0}
-              emptyText="Track your mood daily to see patterns emerge."
+              emptyText={t('insights.noMoodData')}
             >
               <MoodLineChart data={moodSeries} />
               <Text style={styles.caption}>
@@ -318,10 +320,10 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Symptom frequency */}
             <SectionCard
               icon={<Activity size={20} color={colors.primaryDark} />}
-              title="Symptom Frequency"
-              subtitle="Your most logged symptoms"
+              title={t('insights.symptomFrequency')}
+              subtitle={t('insights.symptomSubtitle')}
               isEmpty={symptomFrequency.length === 0}
-              emptyText="Log symptoms and your most frequent ones will show here."
+              emptyText={t('insights.noSymptomData')}
             >
               <SymptomBarChart data={symptomFrequency} />
             </SectionCard>
@@ -329,14 +331,14 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Prediction accuracy */}
             <SectionCard
               icon={<Target size={20} color={colors.primaryDark} />}
-              title="Prediction Accuracy"
+              title={t('insights.predictionAccuracy')}
               subtitle={
                 predictionAccuracy.accuracy !== null
-                  ? `${predictionAccuracy.accuracy}% within 2 days`
-                  : 'Needs 3+ cycles'
+                  ? t('insights.accuracyPercent', { percent: predictionAccuracy.accuracy })
+                  : t('insights.needsMoreCycles')
               }
               isEmpty={predictionAccuracy.entries.length === 0}
-              emptyText="Log at least 3 cycles and we'll show how accurate your predictions are."
+              emptyText={t('insights.noAccuracyData')}
             >
               <View style={styles.accuracyList}>
                 {predictionAccuracy.entries.slice(-5).map((entry, idx) => (
@@ -353,7 +355,7 @@ export const InsightsScreen = ({ navigation }) => {
               </View>
               {cycleVariance !== null && (
                 <Text style={styles.caption}>
-                  Cycle variability: ±{cycleVariance} days
+                  {t('insights.cycleVariability', { days: cycleVariance })}
                 </Text>
               )}
             </SectionCard>
@@ -361,8 +363,8 @@ export const InsightsScreen = ({ navigation }) => {
             {/* Phase-aware tips */}
             <SectionCard
               icon={<Lightbulb size={20} color={colors.primaryDark} />}
-              title={prediction.currentPhase ? `${prediction.currentPhase} Phase Tips` : 'Wellness Tips'}
-              subtitle={prediction.cycleDay ? `Day ${prediction.cycleDay} of your cycle` : 'Personalized to your phase'}
+              title={prediction.currentPhase ? t('insights.phaseAwareTips', { phase: prediction.currentPhase }) : t('insights.wellnessTips')}
+              subtitle={prediction.cycleDay ? t('insights.cycleDay', { day: prediction.cycleDay }) : t('insights.personalizedPhase')}
               isEmpty={false}
             >
               {phaseAwareTips.map((tip, idx) => (
@@ -379,8 +381,7 @@ export const InsightsScreen = ({ navigation }) => {
                 <Droplet size={16} color={colors.primaryDark} />
               </View>
               <Text style={styles.noteText}>
-                These insights are based only on what you've logged. The more you
-                track, the clearer your patterns become.
+                {t('insights.noteText')}
               </Text>
             </View>
           </>
