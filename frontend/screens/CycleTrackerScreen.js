@@ -19,13 +19,6 @@ import {
 import { syncCycles } from '../services/syncService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const PHASE_COPY = {
-  Menstrual: 'Your period is estimated to be active. Rest and hydration may feel especially helpful.',
-  Follicular: 'Estrogen typically rises as your body prepares for ovulation.',
-  Ovulation: 'You are in your estimated ovulation window. Predictions are not contraception.',
-  Luteal: 'Progesterone typically rises as your body approaches the next period.',
-};
 
 const buildMonth = (cursor) => {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
