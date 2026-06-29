@@ -9,6 +9,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
 from middleware.validation import validate_request
+from middleware.rate_limit import limiter, init_limiter, RATE_LIMITS
 from utils.sanitize import sanitize_for_ai
 from utils.health_context import build_health_context, invalidate_cache
 
@@ -28,6 +29,8 @@ if allowed_origins:
     CORS(app, origins=allowed_origins, supports_credentials=True)
 else:
     CORS(app)
+
+init_limiter(app)
 mock_cycles = {}
 
 # Placeholder for Firebase Admin SDK initialization
@@ -144,6 +147,7 @@ def index():
 # ----------------- AUTHENTICATION ENDPOINTS -----------------
 
 @app.route("/signup", methods=["POST"])
+@limiter.limit(RATE_LIMITS["signup"])
 @validate_request({
     "name": {"type": "string", "required": True, "min_length": 1},
     "email": {"type": "email", "required": True},
@@ -207,6 +211,7 @@ def signup():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/login", methods=["POST"])
+@limiter.limit(RATE_LIMITS["login"])
 @validate_request({
     "email": {"type": "email", "required": True},
     "password": {"type": "string", "required": True},
@@ -249,6 +254,7 @@ def login():
 # ----------------- PERIOD TRACKING ENDPOINTS -----------------
 
 @app.route("/add-cycle", methods=["POST"])
+@limiter.limit(RATE_LIMITS["add_cycle"])
 @authenticated_user
 @validate_request({
     "startDate": {"type": "date", "required": True},
@@ -387,6 +393,7 @@ def get_cycle_prediction():
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
 @app.route("/add-symptom", methods=["POST"])
+@limiter.limit(RATE_LIMITS["add_symptom"])
 @validate_request({
     "type": {"type": "string", "required": True},
     "severity": {"type": "string", "required": True},
@@ -456,6 +463,7 @@ def get_symptoms():
 # ----------------- AI HEALTH CHAT ENDPOINTS -----------------
 
 @app.route("/chat", methods=["POST"])
+@limiter.limit(RATE_LIMITS["chat"])
 @authenticated_user
 @validate_request({
     "message": {"type": "string", "required": True, "min_length": 1, "max_length": 2000},
@@ -522,6 +530,7 @@ def chat():
 
 
 @app.route("/chat/stream", methods=["POST"])
+@limiter.limit(RATE_LIMITS["chat_stream"])
 @authenticated_user
 def chat_stream():
     """
@@ -647,6 +656,7 @@ def get_insights():
 # ----------------- ACCOUNT MANAGEMENT ENDPOINTS -----------------
 
 @app.route("/delete-account", methods=["DELETE"])
+@limiter.limit(RATE_LIMITS["delete_account"])
 @authenticated_user
 def delete_account():
     """
@@ -700,6 +710,7 @@ share_links = {}
 
 
 @app.route("/share/create", methods=["POST"])
+@limiter.limit(RATE_LIMITS["share_create"])
 @authenticated_user
 def create_share_link():
     """

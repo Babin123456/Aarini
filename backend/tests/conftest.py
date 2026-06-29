@@ -19,6 +19,9 @@ os.environ["FLASK_ENV"] = "testing"
 
 @pytest.fixture(scope="session")
 def app():
+    from middleware.rate_limit import limiter
+    limiter.enabled = False
+
     from app import app as flask_app
 
     flask_app.config["TESTING"] = True
