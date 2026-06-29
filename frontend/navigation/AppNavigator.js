@@ -17,6 +17,7 @@ import { SymptomLogScreen } from '../screens/SymptomLogScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ShareScreen } from '../screens/ShareScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { NotificationPrefsScreen } from '../screens/NotificationPrefsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -82,6 +83,7 @@ const AppStack = ({ initialRoute = 'Tabs' }) => (
     <Stack.Screen name="Tabs" component={AppTabs} />
     <Stack.Screen name="SymptomLog" component={SymptomLogScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
     <Stack.Screen name="Share" component={ShareScreen} />
   </Stack.Navigator>
 );
