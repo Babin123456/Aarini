@@ -88,92 +88,99 @@ export const LoginScreen = ({ navigation }) => {
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Header Section */}
-          <View style={styles.header}>
-            <View style={styles.iconBadge} importantForAccessibility="no">
-              <Sparkles size={24} color={colors.primaryDark} />
+          <View style={styles.contentWrapper}>
+            {/* Header Section */}
+            <View style={styles.header}>
+              <View style={styles.iconBadge} importantForAccessibility="no">
+                <Sparkles size={24} color={colors.primaryDark} />
+              </View>
+              <Text style={[typography.h1, styles.title]}>{t('login.title')}</Text>
+              <Text style={[typography.bodyLarge, styles.subtitle]}>
+                {t('login.subtitle')}
+              </Text>
+              {sessionExpired && (
+                <View
+                  style={styles.sessionAlert}
+                  accessibilityLiveRegion="polite"
+                  accessibilityRole="alert"
+                >
+                  <Text style={styles.sessionAlertText}>
+                    {t('login.sessionExpired')}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Text style={[typography.h1, styles.title]}>{t('login.title')}</Text>
-            <Text style={[typography.bodyLarge, styles.subtitle]}>
-              {t('login.subtitle')}
-            </Text>
-            {sessionExpired && (
-              <View
-                style={{ backgroundColor: colors.error, borderRadius: 8, padding: 12, marginTop: 12 }}
-                accessibilityLiveRegion="polite"
-                accessibilityRole="alert"
+
+            {/* Form Fields */}
+            <View style={styles.form}>
+              <InputField
+                label={t('login.emailLabel')}
+                value={email}
+                onChangeText={validateEmail}
+                placeholder={t('login.emailPlaceholder')}
+                keyboardType="email-address"
+                error={emailError}
+                containerStyle={styles.formField}
+              />
+
+              <InputField
+                label={t('login.passwordLabel')}
+                value={password}
+                onChangeText={validatePassword}
+                placeholder={t('login.passwordPlaceholder')}
+                secureTextEntry={true}
+                error={passwordError}
+                containerStyle={styles.formField}
+              />
+
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={styles.forgotContainer}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={t('login.forgotPassword')}
               >
-                <Text style={{ color: colors.errorDark, fontSize: 13, fontWeight: '500', textAlign: 'center' }}>
-                  {t('login.sessionExpired')}
+                <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
+              </TouchableOpacity>
+
+              <Button
+                title={t('login.signIn')}
+                onPress={handleLogin}
+                loading={isLoading}
+                style={styles.submitButton}
+              />
+
+              <View style={styles.demoBanner} importantForAccessibility="no">
+                <Text style={styles.demoText}>
+                  {t('login.demoHint')}
                 </Text>
               </View>
-            )}
-          </View>
-
-          {/* Form Fields */}
-          <View style={styles.form}>
-            <InputField
-              label={t('login.emailLabel')}
-              value={email}
-              onChangeText={validateEmail}
-              placeholder={t('login.emailPlaceholder')}
-              keyboardType="email-address"
-              error={emailError}
-            />
-
-            <InputField
-              label={t('login.passwordLabel')}
-              value={password}
-              onChangeText={validatePassword}
-              placeholder={t('login.passwordPlaceholder')}
-              secureTextEntry={true}
-              error={passwordError}
-            />
-
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={styles.forgotContainer}
-              activeOpacity={0.7}
-              accessibilityRole="link"
-              accessibilityLabel={t('login.forgotPassword')}
-            >
-              <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
-            </TouchableOpacity>
-
-            <Button
-              title={t('login.signIn')}
-              onPress={handleLogin}
-              loading={isLoading}
-              style={styles.submitButton}
-            />
-
-            <View style={styles.demoBanner} importantForAccessibility="no">
-              <Text style={styles.demoText}>
-                {t('login.demoHint')}
-              </Text>
             </View>
-          </View>
 
-          {/* Bottom Onboarding Switch Link */}
-          <View style={styles.footer}>
-            <Text style={[typography.bodyMedium, styles.footerText]}>
-              {t('login.noAccount')}{' '}
-            </Text>
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('Signup')}
-              activeOpacity={0.7}
-              accessibilityRole="link"
-              accessibilityLabel={t('login.createAccount')}
-            >
-              <Text style={styles.signupLink}>{t('login.createAccount')}</Text>
-            </TouchableOpacity>
+            {/* Bottom Onboarding Switch Link */}
+            <View style={styles.footer}>
+              <Text style={[typography.bodyMedium, styles.footerText]}>
+                {t('login.noAccount')}{' '}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('Signup')}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={t('login.createAccount')}
+              >
+                <Text style={styles.signupLink}>{t('login.createAccount')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
   );
 };
+
+const AUTH_FORM_MAX_WIDTH = 420;
 
 const createStyles = ({ colors, typography, spacing }) => StyleSheet.create({
   container: {
@@ -184,14 +191,19 @@ const createStyles = ({ colors, typography, spacing }) => StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: Platform.OS === 'web' ? 'flex-start' : 'center',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'web' ? spacing.xxl : 60,
+    paddingBottom: spacing.xl,
+  },
+  contentWrapper: {
+    width: '100%',
+    maxWidth: AUTH_FORM_MAX_WIDTH,
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   iconBadge: {
     backgroundColor: colors.cardBackground,
@@ -210,21 +222,40 @@ const createStyles = ({ colors, typography, spacing }) => StyleSheet.create({
   subtitle: {
     textAlign: 'center',
     color: colors.textMedium,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.sm,
+  },
+  sessionAlert: {
+    backgroundColor: colors.error,
+    borderRadius: 8,
+    padding: spacing.sm + spacing.xs,
+    marginTop: spacing.sm + spacing.xs,
+    width: '100%',
+  },
+  sessionAlertText: {
+    color: colors.errorDark,
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   form: {
     backgroundColor: colors.cardBackground,
     borderRadius: 24,
     padding: spacing.lg,
+    width: '100%',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.16,
     shadowRadius: 16,
     elevation: 4,
   },
+  formField: {
+    marginVertical: 0,
+    marginBottom: spacing.md,
+  },
   forgotContainer: {
     alignSelf: 'flex-end',
-    marginVertical: spacing.xs,
+    marginTop: -spacing.xs,
+    marginBottom: spacing.md,
   },
   forgotText: {
     ...typography.bodySmall,
@@ -232,7 +263,7 @@ const createStyles = ({ colors, typography, spacing }) => StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    marginTop: spacing.md,
+    marginVertical: 0,
   },
   demoBanner: {
     backgroundColor: colors.mutedBackground,
