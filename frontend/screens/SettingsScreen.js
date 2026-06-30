@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, ActivityIndicator, Alert, Platform,
+  TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -44,7 +44,7 @@ export const SettingsScreen = ({ navigation }) => {
   const handleBackup = async () => {
     setBackingUp(true);
     try {
-      const result = await createBackup(user?.uid || 'local', userToken);
+      const result = await createBackup(user?.uid || 'local');
       await shareBackupFile(result.filePath);
       Alert.alert(t('common.success'), t('settings.backupSuccess', { count: result.entryCount }));
     } catch (err) {

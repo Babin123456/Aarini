@@ -43,7 +43,7 @@ function computeChecksum(data) {
   return Math.abs(hash).toString(36);
 }
 
-export async function createBackup(userId, token) {
+export async function createBackup(userId) {
   const allKeys = await AsyncStorage.getAllKeys();
 
   const healthData = {};
