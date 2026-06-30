@@ -390,6 +390,115 @@ def get_cycle_prediction():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/cycles/<cycle_id>", methods=["PUT"])
+@authenticated_user
+@validate_request({
+    "startDate": {"type": "date", "required": True},
+    "endDate": {"type": "date", "required": True},
+    "flowIntensity": {"type": "string", "required": False},
+})
+def update_cycle(cycle_id):
+    """Update an existing cycle entry. Same validation rules as add-cycle."""
+    data = request.get_json() or {}
+    uid = request.user_id
+    start_date = data.get("startDate")
+    end_date = data.get("endDate")
+    flow_intensity = data.get("flowIntensity")
+    symptoms = data.get("symptoms", [])
+    mood = data.get("mood")
+
+    try:
+        parsed_start = parse_date(start_date)
+        parsed_end = parse_date(end_date)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if parsed_end < parsed_start:
+        return jsonify({"error": "endDate cannot be before startDate"}), 400
+    if (parsed_end - parsed_start).days > 13:
+        return jsonify({"error": "A period entry cannot be longer than 14 days"}), 400
+    if parsed_start > date.today():
+        return jsonify({"error": "startDate cannot be in the future"}), 400
+
+    logger.info(f"Updating cycle {cycle_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        target = next((c for c in user_cycles if c.get("id") == cycle_id), None)
+        if not target:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        target["startDate"] = start_date
+        target["endDate"] = end_date
+        target["flowIntensity"] = flow_intensity
+        target["symptoms"] = symptoms
+        target["mood"] = mood
+        invalidate_cache(uid)
+        return jsonify({
+            "message": "Cycle updated successfully (Mock Mode)",
+            "cycle": target,
+            "prediction": predict_cycle(user_cycles),
+        }), 200
+
+    try:
+        cycle_ref = db.collection("users").document(uid).collection("cycles").document(cycle_id)
+        doc = cycle_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        cycle_ref.update({
+            "startDate": start_date,
+            "endDate": end_date,
+            "flowIntensity": flow_intensity,
+            "symptoms": symptoms,
+            "mood": mood,
+        })
+        invalidate_cache(uid)
+        cycles_docs = db.collection("users").document(uid).collection("cycles").order_by("startDate").stream()
+        all_cycles = [d.to_dict() for d in cycles_docs]
+        return jsonify({
+            "message": "Cycle updated",
+            "prediction": predict_cycle(all_cycles),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating cycle: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cycles/<cycle_id>", methods=["DELETE"])
+@authenticated_user
+def delete_cycle(cycle_id):
+    """Permanently remove a cycle entry."""
+    uid = request.user_id
+    logger.info(f"Deleting cycle {cycle_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        original_len = len(user_cycles)
+        mock_cycles[uid] = [c for c in user_cycles if c.get("id") != cycle_id]
+        if len(mock_cycles[uid]) == original_len:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        invalidate_cache(uid)
+        return jsonify({
+            "message": "Cycle deleted successfully (Mock Mode)",
+            "prediction": predict_cycle(mock_cycles[uid]),
+        }), 200
+
+    try:
+        cycle_ref = db.collection("users").document(uid).collection("cycles").document(cycle_id)
+        doc = cycle_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        cycle_ref.delete()
+        invalidate_cache(uid)
+        cycles_docs = db.collection("users").document(uid).collection("cycles").order_by("startDate").stream()
+        all_cycles = [d.to_dict() for d in cycles_docs]
+        return jsonify({
+            "message": "Cycle deleted",
+            "prediction": predict_cycle(all_cycles),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error deleting cycle: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
 @app.route("/add-symptom", methods=["POST"])
@@ -457,6 +566,82 @@ def get_symptoms():
         return jsonify(symptoms_list), 200
     except Exception as e:
         logger.error(f"Error fetching symptoms: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+mock_symptoms = {}
+
+
+@app.route("/symptoms/<symptom_id>", methods=["PUT"])
+@authenticated_user
+@validate_request({
+    "type": {"type": "string", "required": True},
+    "severity": {"type": "string", "required": True},
+    "date": {"type": "date", "required": True},
+})
+def update_symptom(symptom_id):
+    """Update an existing symptom entry."""
+    data = request.get_json() or {}
+    uid = request.user_id
+    symptom_type = data.get("type")
+    severity = data.get("severity")
+    symptom_date = data.get("date")
+
+    logger.info(f"Updating symptom {symptom_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_symptoms = mock_symptoms.get(uid, [])
+        target = next((s for s in user_symptoms if s.get("id") == symptom_id), None)
+        if not target:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        target["type"] = symptom_type
+        target["severity"] = severity
+        target["date"] = symptom_date
+        return jsonify({
+            "message": "Symptom updated successfully (Mock Mode)",
+            "symptom": target,
+        }), 200
+
+    try:
+        symptom_ref = db.collection("users").document(uid).collection("symptoms").document(symptom_id)
+        doc = symptom_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        symptom_ref.update({
+            "type": symptom_type,
+            "severity": severity,
+            "date": symptom_date,
+        })
+        return jsonify({"message": "Symptom updated"}), 200
+    except Exception as e:
+        logger.error(f"Error updating symptom: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/symptoms/<symptom_id>", methods=["DELETE"])
+@authenticated_user
+def delete_symptom(symptom_id):
+    """Permanently remove a symptom entry."""
+    uid = request.user_id
+    logger.info(f"Deleting symptom {symptom_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_symptoms = mock_symptoms.get(uid, [])
+        original_len = len(user_symptoms)
+        mock_symptoms[uid] = [s for s in user_symptoms if s.get("id") != symptom_id]
+        if len(mock_symptoms[uid]) == original_len:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        return jsonify({"message": "Symptom deleted successfully (Mock Mode)"}), 200
+
+    try:
+        symptom_ref = db.collection("users").document(uid).collection("symptoms").document(symptom_id)
+        doc = symptom_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        symptom_ref.delete()
+        return jsonify({"message": "Symptom deleted"}), 200
+    except Exception as e:
+        logger.error(f"Error deleting symptom: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
