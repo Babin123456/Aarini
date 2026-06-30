@@ -1,11 +1,9 @@
-import { parseLocalDate, toDateKey } from './cyclePrediction';
+import { parseLocalDate } from './cyclePrediction';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const diffDays = (later, earlier) => Math.round((later - earlier) / DAY_MS);
 
 const MOOD_VALUES = { great: 5, good: 4, okay: 3, low: 2, bad: 1 };
-
-const PHASES = ['Menstrual', 'Follicular', 'Ovulation', 'Luteal'];
 
 /**
  * Determine which cycle day a given date falls on.
