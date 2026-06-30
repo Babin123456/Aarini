@@ -39,6 +39,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
   const [entries, setEntries] = useState({});
   const [todayMood, setTodayMood] = useState(null);
   const [note, setNote] = useState('');
+  const [moodError, setMoodError] = useState('');
   const today = getDateKey();
 
   const loadEntries = useCallback(async () => {
@@ -62,6 +63,7 @@ export const MoodTrackingScreen = ({ navigation }) => {
   }, [loadEntries]);
 
   const saveMood = async (moodKey) => {
+    setMoodError('');
     setTodayMood(moodKey);
     const updated = {
       ...entries,
@@ -213,7 +215,10 @@ export const MoodTrackingScreen = ({ navigation }) => {
               );
             })}
           </View>
-          {todayMood && (
+          {!todayMood && moodError ? (
+            <Text style={styles.errorText} accessibilityRole="alert">{moodError}</Text>
+          ) : null}
+          {todayMood ? (
             <TextInput
               style={styles.noteInput}
               placeholder="Add a note (optional)"
@@ -225,6 +230,15 @@ export const MoodTrackingScreen = ({ navigation }) => {
               accessibilityLabel="Mood note"
               accessibilityHint="Add an optional note about how you feel today"
             />
+          ) : (
+            <TouchableOpacity
+              onPress={() => setMoodError('Please select a mood above before adding a note.')}
+              style={styles.noteInputDisabled}
+              accessibilityLabel="Select a mood first"
+              accessibilityHint="Tap a mood above to unlock the note field"
+            >
+              <Text style={styles.noteInputPlaceholder}>Add a note (select a mood first)</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -327,6 +341,9 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
     moodButtonSelected: { borderColor: colors.primaryDark, backgroundColor: colors.mutedBackground },
     moodLabel: { ...typography.caption, marginTop: 4, color: colors.textLight },
     noteInput: { ...typography.bodyMedium, color: colors.textDark, backgroundColor: colors.inputBackground, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.md, minHeight: 60, textAlignVertical: 'top' },
+    noteInputDisabled: { backgroundColor: colors.mutedBackground, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.md, minHeight: 60, justifyContent: 'center' },
+    noteInputPlaceholder: { ...typography.bodyMedium, color: colors.textLight },
+    errorText: { ...typography.bodySmall, color: colors.errorDark, marginTop: spacing.sm },
     dayLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: spacing.xs },
     dayLabel: { ...typography.caption, color: colors.textLight, textAlign: 'center', width: 36 },
     emptyState: { paddingVertical: spacing.xl, alignItems: 'center' },

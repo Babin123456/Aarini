@@ -19,7 +19,8 @@ const SYMPTOMS = [
   'Acne', 'Nausea', 'Mood swings', 'Breast tenderness',
 ];
 
-const SEVERITIES = ['Low', 'Medium', 'High'];
+const SEVERITIES = ['mild', 'moderate', 'severe'];
+const VALID_SEVERITIES = new Set(['mild', 'moderate', 'severe']);
 
 const getDateKey = () => {
   const d = new Date();
@@ -37,6 +38,10 @@ export const SymptomLogScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+
+  // Form is valid only when a symptom and a valid severity are both chosen
+  const isFormValid = Boolean(selected && severity && VALID_SEVERITIES.has(severity));
 
   const headers = useMemo(() => ({
     'Content-Type': 'application/json',
@@ -62,7 +67,19 @@ export const SymptomLogScreen = ({ navigation }) => {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const submit = async () => {
-    if (!selected || !severity) return;
+    // Client-side validation before hitting the API
+    const newErrors = {};
+    if (!selected) newErrors.symptom = 'Please select a symptom.';
+    if (!severity) {
+      newErrors.severity = 'Please select a severity level.';
+    } else if (!VALID_SEVERITIES.has(severity)) {
+      newErrors.severity = 'Severity must be mild, moderate, or severe.';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     setSaving(true);
     try {
       await fetch(`${BACKEND_URL}/add-symptom`, {
@@ -114,7 +131,10 @@ export const SymptomLogScreen = ({ navigation }) => {
                 <TouchableOpacity
                   key={s}
                   style={[styles.chip, isActive && styles.chipActive]}
-                  onPress={() => setSelected(isActive ? null : s)}
+                  onPress={() => {
+                    setSelected(isActive ? null : s);
+                    if (errors.symptom) setErrors((e) => ({ ...e, symptom: undefined }));
+                  }}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isActive }}
                 >
@@ -123,6 +143,9 @@ export const SymptomLogScreen = ({ navigation }) => {
               );
             })}
           </View>
+          {errors.symptom ? (
+            <Text style={styles.errorText} accessibilityRole="alert">{errors.symptom}</Text>
+          ) : null}
         </View>
 
         {/* Severity */}
@@ -136,25 +159,48 @@ export const SymptomLogScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={s}
                     style={[styles.severityButton, isActive && styles.severityActive]}
-                    onPress={() => setSeverity(s)}
+                    onPress={() => {
+                      setSeverity(s);
+                      if (errors.severity) setErrors((e) => ({ ...e, severity: undefined }));
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isActive }}
                   >
-                    <Text style={[styles.severityText, isActive && { color: colors.white, fontWeight: '600' }]}>{s}</Text>
+                    <Text style={[
+                      styles.severityText,
+                      isActive && { color: colors.white, fontWeight: '600' },
+                      { textTransform: 'capitalize' },
+                    ]}>{s}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-            {severity && (
-              <TouchableOpacity style={styles.submitButton} onPress={submit} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.white} />
-                ) : (
-                  <>
-                    <Plus size={18} color={colors.white} />
-                    <Text style={styles.submitText}>Log {selected}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+            {errors.severity ? (
+              <Text style={styles.errorText} accessibilityRole="alert">{errors.severity}</Text>
+            ) : null}
+            {/* Submit button always visible once a symptom is selected; disabled until form valid */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (!isFormValid || saving) && styles.submitButtonDisabled,
+              ]}
+              onPress={submit}
+              disabled={saving || !isFormValid}
+              accessibilityRole="button"
+              accessibilityLabel={`Log ${selected}`}
+              accessibilityState={{ disabled: saving || !isFormValid }}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Plus size={18} color={isFormValid ? colors.white : colors.textLight} />
+                  <Text style={[styles.submitText, !isFormValid && { color: colors.textLight }]}>
+                    Log {selected}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -200,7 +246,9 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
     severityActive: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
     severityText: { ...typography.bodyMedium, color: colors.textMedium },
     submitButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.primaryDark },
+    submitButtonDisabled: { backgroundColor: colors.mutedBackground, borderWidth: 1, borderColor: colors.border },
     submitText: { ...typography.buttonText, color: colors.white },
+    errorText: { ...typography.bodySmall, color: colors.errorDark, marginTop: spacing.xs },
     emptyText: { ...typography.bodyMedium, color: colors.textLight, textAlign: 'center', paddingVertical: spacing.lg },
     historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
     historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primaryDark },
