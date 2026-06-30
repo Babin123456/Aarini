@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Switch,
+  Alert, Modal, SafeAreaView, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { ArrowLeft, Check, Pill, Plus, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Check, Pill, Plus, Trash2 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
