@@ -18,6 +18,7 @@ import {
   cancelAllScheduledNotifications, rescheduleAfterCycleLog, scheduleAllNotifications,
 } from '../services/notificationScheduler';
 import { syncCycles } from '../services/syncService';
+import { CyclePhaseBadge } from '../components/CyclePhaseBadge';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
 
@@ -203,6 +204,9 @@ export const CycleTrackerScreen = () => {
               </View>
               <Text style={styles.phaseCopy}>{t(`cycleTracker.phases.${phase}`)}</Text>
             </View>
+
+            {/* Phase badge — days remaining + contextual description */}
+            <CyclePhaseBadge prediction={prediction} />
 
             <View style={styles.metrics}>
               <View style={styles.metricCard}>
