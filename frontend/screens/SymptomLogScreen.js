@@ -12,7 +12,7 @@ import { ArrowLeft, Plus, Check } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 const SYMPTOMS = [
   'Cramps', 'Headache', 'Bloating', 'Fatigue',
