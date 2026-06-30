@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Svg, { Rect, Polyline, Circle, Line, G } from 'react-native-svg';
-import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb, Heart } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -21,6 +21,12 @@ import {
   computeCycleVariance,
   getPhaseAwareTips,
 } from '../utils/analyticsEngine';
+import {
+  computeMoodCycleCorrelation,
+  generatePatternSummary,
+  PHASE_COLORS,
+} from '../utils/moodCycleCorrelation';
+import { secureGetItem } from '../utils/secureStorage';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
 
@@ -34,7 +40,7 @@ const MOOD_SCALE = {
 };
 
 export const InsightsScreen = ({ navigation }) => {
-  const { userToken } = useAuth();
+  const { userToken, user } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { colors, typography, spacing } = theme;
@@ -44,6 +50,7 @@ export const InsightsScreen = ({ navigation }) => {
   const [cycles, setCycles] = useState([]);
   const [symptoms, setSymptoms] = useState([]);
   const [moods, setMoods] = useState([]);
+  const [moodEntries, setMoodEntries] = useState({});
 
   const authHeaders = useMemo(
     () => ({
@@ -75,10 +82,19 @@ export const InsightsScreen = ({ navigation }) => {
     setCycles(cyclesRes?.cycles || []);
     setSymptoms(symptomsRes?.symptoms || []);
     // Mood entries may ride along with symptoms or come from a mood field.
-    const moodEntries = (symptomsRes?.symptoms || [])
+    const moodEntries2 = (symptomsRes?.symptoms || [])
       .filter((s) => s.mood)
       .map((s) => ({ date: s.date, mood: s.mood }));
-    setMoods(moodEntries);
+    setMoods(moodEntries2);
+
+    // Load local mood entries from secure storage (MoodTrackingScreen data)
+    try {
+      const userId = user?.uid || 'local';
+      const raw = await secureGetItem('@aarini_mood_entries', userId);
+      if (raw) setMoodEntries(JSON.parse(raw));
+    } catch {
+      // Fail silently - correlation just won't show
+    }
 
     setLoading(false);
   }, [authHeaders]);
@@ -125,6 +141,11 @@ export const InsightsScreen = ({ navigation }) => {
   }, [moods]);
 
   const symptomFrequency = useMemo(() => computeSymptomFrequency(symptoms), [symptoms]);
+
+  const moodCycleCorrelation = useMemo(
+    () => computeMoodCycleCorrelation(moodEntries, cycles),
+    [moodEntries, cycles]
+  );
 
   // ---- Sub-components -----------------------------------------------------
 
@@ -192,6 +213,67 @@ export const InsightsScreen = ({ navigation }) => {
           const x = pad + i * stepX;
           const y = pad + (height - pad * 2) * (1 - (v - minV) / (maxV - minV));
           return <Circle key={i} cx={x} cy={y} r="4" fill={colors.primaryDark} />;
+        })}
+      </Svg>
+    );
+  };
+
+  const MoodCycleChart = ({ correlation }) => {
+    const { dayAverages, phaseBands, avgCycleLength } = correlation;
+    const width = 320;
+    const height = 160;
+    const pad = 28;
+    const chartW = width - pad * 2;
+    const chartH = height - pad * 2;
+    const maxV = 5;
+    const minV = 1;
+
+    const validPoints = dayAverages.filter((d) => d.average !== null);
+    const points = validPoints
+      .map((d) => {
+        const x = pad + ((d.day - 1) / (avgCycleLength - 1)) * chartW;
+        const y = pad + chartH * (1 - (d.average - minV) / (maxV - minV));
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    return (
+      <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+        {phaseBands.map((band) => {
+          const x = pad + ((band.start - 1) / avgCycleLength) * chartW;
+          const w = ((band.end - band.start + 1) / avgCycleLength) * chartW;
+          return (
+            <Rect
+              key={band.phase}
+              x={x}
+              y={pad}
+              width={w}
+              height={chartH}
+              fill={PHASE_COLORS[band.phase] || '#F3F0FC'}
+              opacity={0.5}
+            />
+          );
+        })}
+        {[1, 3, 5].map((lvl) => {
+          const y = pad + chartH * (1 - (lvl - minV) / (maxV - minV));
+          return (
+            <Line key={lvl} x1={pad} y1={y} x2={width - pad} y2={y} stroke={colors.border} strokeWidth="0.5" />
+          );
+        })}
+        {validPoints.length > 1 && (
+          <Polyline
+            points={points}
+            fill="none"
+            stroke={colors.primaryDark}
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        )}
+        {validPoints.map((d) => {
+          const x = pad + ((d.day - 1) / (avgCycleLength - 1)) * chartW;
+          const y = pad + chartH * (1 - (d.average - minV) / (maxV - minV));
+          return <Circle key={d.day} cx={x} cy={y} r="3" fill={colors.primaryDark} />;
         })}
       </Svg>
     );
@@ -315,6 +397,42 @@ export const InsightsScreen = ({ navigation }) => {
                 Last {moodSeries.length} mood entr
                 {moodSeries.length === 1 ? 'y' : 'ies'}
               </Text>
+            </SectionCard>
+
+            {/* Mood-cycle correlation */}
+            <SectionCard
+              icon={<Heart size={20} color={colors.secondaryDark} />}
+              title={t('insights.moodCycleTitle')}
+              subtitle={
+                moodCycleCorrelation
+                  ? t('insights.moodCycleSubtitle', { cycles: moodCycleCorrelation.cyclesUsed })
+                  : t('insights.moodCycleOverview')
+              }
+              isEmpty={!moodCycleCorrelation}
+              emptyText={t('insights.noMoodCycleData')}
+            >
+              {moodCycleCorrelation && (
+                <>
+                  <MoodCycleChart correlation={moodCycleCorrelation} />
+                  <View style={styles.phaseLegend}>
+                    {moodCycleCorrelation.phaseBands.map((band) => (
+                      <View key={band.phase} style={styles.phaseLegendItem}>
+                        <View style={[styles.phaseLegendDot, { backgroundColor: PHASE_COLORS[band.phase] }]} />
+                        <Text style={styles.phaseLegendLabel}>{band.phase}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {moodCycleCorrelation.patterns.map((pattern, idx) => (
+                    <View key={idx} style={styles.patternRow}>
+                      <View style={[styles.patternDot, { backgroundColor: pattern.type === 'dip' ? colors.secondaryDark : colors.successDark }]} />
+                      <Text style={styles.patternText}>{generatePatternSummary(pattern)}</Text>
+                    </View>
+                  ))}
+                  <Text style={styles.caption}>
+                    {t('insights.moodCycleCaption', { count: moodCycleCorrelation.totalMoodsMapped })}
+                  </Text>
+                </>
+              )}
             </SectionCard>
 
             {/* Symptom frequency */}
@@ -564,5 +682,45 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
       color: colors.textMedium,
       flex: 1,
       lineHeight: 20,
+    },
+    phaseLegend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    phaseLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    phaseLegendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    phaseLegendLabel: {
+      ...typography.caption,
+      color: colors.textMedium,
+    },
+    patternRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing.sm,
+      paddingHorizontal: spacing.xs,
+    },
+    patternDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginTop: 5,
+      marginRight: spacing.sm,
+    },
+    patternText: {
+      ...typography.bodySmall,
+      color: colors.textMedium,
+      flex: 1,
+      lineHeight: 18,
     },
   });
