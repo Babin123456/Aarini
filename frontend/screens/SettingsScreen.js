@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, ActivityIndicator, Alert,
+  TouchableOpacity, ActivityIndicator, Alert, Platform,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share, Globe, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { exportHealthData, shareExportFile } from '../services/exportService';
+import { createBackup, shareBackupFile, restoreFromBackup } from '../services/backupService';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -21,6 +24,8 @@ export const SettingsScreen = ({ navigation }) => {
   const [exporting, setExporting] = useState(false);
   const [lastExport, setLastExport] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const handleExport = async (format) => {
     setExporting(true);
@@ -33,6 +38,50 @@ export const SettingsScreen = ({ navigation }) => {
       Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const result = await createBackup(user?.uid || 'local', userToken);
+      await shareBackupFile(result.filePath);
+      Alert.alert(t('common.success'), t('settings.backupSuccess', { count: result.entryCount }));
+    } catch (err) {
+      Alert.alert(t('common.error'), err.message || t('settings.backupFailed'));
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setRestoring(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result.canceled) {
+        setRestoring(false);
+        return;
+      }
+      const file = result.assets?.[0];
+      if (!file) {
+        setRestoring(false);
+        return;
+      }
+      const content = await FileSystem.readAsStringAsync(file.uri);
+      const userId = user?.uid || 'local';
+      const restoreResult = await restoreFromBackup(content, userId);
+      if (!restoreResult.success) {
+        Alert.alert(t('common.error'), restoreResult.error);
+      } else {
+        Alert.alert(
+          t('common.success'),
+          t('settings.restoreSuccess', { count: restoreResult.restoredCount }),
+        );
+      }
+    } catch (err) {
+      Alert.alert(t('common.error'), err.message || t('settings.restoreFailed'));
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -174,6 +223,56 @@ export const SettingsScreen = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <Archive size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>{t('settings.backup')}</Text>
+              <Text style={styles.cardSubtitle}>{t('settings.backupSubtitle')}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.infoText}>
+            {t('settings.backupInfo')}
+          </Text>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.exportButton, styles.exportButtonPrimary]}
+              onPress={handleBackup}
+              disabled={backingUp}
+              accessibilityLabel={t('settings.createBackup')}
+            >
+              {backingUp ? (
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+              ) : (
+                <>
+                  <Archive size={18} color={colors.textOnPrimary} />
+                  <Text style={styles.exportButtonTextPrimary}>{t('settings.createBackup')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.exportButton, styles.exportButtonSecondary]}
+              onPress={handleRestore}
+              disabled={restoring}
+              accessibilityLabel={t('settings.restoreBackup')}
+            >
+              {restoring ? (
+                <ActivityIndicator size="small" color={colors.primaryDark} />
+              ) : (
+                <>
+                  <UploadCloud size={18} color={colors.primaryDark} />
+                  <Text style={styles.exportButtonTextSecondary}>{t('settings.restoreBackup')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
