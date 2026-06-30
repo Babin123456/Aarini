@@ -6,8 +6,8 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
+import { SkeletonCard } from '../components/SkeletonCard';
 import Svg, { Rect, Polyline, Circle, Line, G } from 'react-native-svg';
 import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
@@ -277,10 +277,11 @@ export const InsightsScreen = ({ navigation }) => {
         </View>
 
         {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={colors.primaryDark} />
-            <Text style={styles.loadingText}>{t('insights.loading')}</Text>
-          </View>
+          <>
+            <SkeletonCard height={160} lines={4} />
+            <SkeletonCard height={180} lines={3} />
+            <SkeletonCard height={140} lines={4} />
+          </>
         ) : (
           <>
             {/* Cycle trend */}
@@ -422,15 +423,7 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
       flex: 1,
       textAlign: 'center',
     },
-    loadingWrap: {
-      paddingTop: spacing.xxl,
-      alignItems: 'center',
-    },
-    loadingText: {
-      ...typography.bodyMedium,
-      color: colors.textMedium,
-      marginTop: spacing.md,
-    },
+
     card: {
       backgroundColor: colors.cardBackground,
       borderRadius: borderRadius.lg,

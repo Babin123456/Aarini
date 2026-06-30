@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, SafeAreaView, ScrollView, StyleSheet,
+  Alert, Modal, SafeAreaView, ScrollView, StyleSheet,
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import { SkeletonCard } from '../components/SkeletonCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Bell, CalendarDays, ChevronLeft, ChevronRight, Droplets, LogOut, Plus, Settings, Sparkles,
@@ -177,9 +178,9 @@ export const CycleTrackerScreen = () => {
         )}
 
         {loading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primaryDark} />
-            <Text style={styles.muted}>Learning your cycle rhythm…</Text>
+          <View style={{ paddingTop: spacing.sm }}>
+            <SkeletonCard height={200} lines={4} />
+            <SkeletonCard height={140} lines={3} />
           </View>
         ) : !prediction?.hasHistory ? (
           <View style={styles.heroCard}>
