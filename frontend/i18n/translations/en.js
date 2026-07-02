@@ -219,6 +219,14 @@ export default {
     daysAgo: '{{count}} days ago',
     lastWeek: 'Last week',
   },
+  achievements: {
+    title: 'Achievements',
+    currentStreak: 'day streak',
+    longestStreak: 'Longest: {{days}} days',
+    thisMonth: 'THIS MONTH',
+    milestones: 'MILESTONES',
+    totalDays: 'TOTAL DAYS LOGGED',
+  },
   medication: {
     title: 'Medications',
     add: 'Add Medication',
