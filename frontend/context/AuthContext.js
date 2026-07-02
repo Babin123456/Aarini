@@ -6,7 +6,7 @@ import { requestNotificationPermission } from '../services/notificationScheduler
 
 const AuthContext = createContext();
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const ACTIVITY_EXTEND_MS = 30 * 60 * 1000; // 30 min of inactivity before expiry check
 

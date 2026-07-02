@@ -10,7 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/Button';
 import { markOnboardingComplete, saveOnboardingData } from '../utils/onboardingStorage';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.117.86.186:5000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 const CYCLE_LENGTHS = Array.from({ length: 15 }, (_, i) => i + 21);
 const PERIOD_DURATIONS = [3, 4, 5, 6, 7];
