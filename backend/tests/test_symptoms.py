@@ -86,3 +86,128 @@ class TestGetSymptoms:
             assert "type" in symptom
             assert "severity" in symptom
             assert "date" in symptom
+
+
+# ---------------------------------------------------------------------------
+# Security regression tests for issue #82.
+#
+# /add-symptom, /symptoms, and /insights must derive the user identity from the
+# verified Firebase token (request.user_id, set by @authenticated_user), never
+# from a client-supplied uid in the body or query string. In production mode
+# (firebase_initialized=True) an unauthenticated or invalid-token request must be
+# rejected with 401. These tests simulate production mode by monkeypatching the
+# module-level firebase_initialized flag and, where relevant, auth.verify_id_token.
+# ---------------------------------------------------------------------------
+
+
+class TestSymptomsAuthorization:
+    """/add-symptom and /symptoms must require a verified token in production."""
+
+    def test_add_symptom_requires_token(self, client, monkeypatch):
+        """POST /add-symptom with no Authorization header returns 401 in production."""
+        import app as app_module
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        payload = {
+            "uid": "victim_user",
+            "type": "Cramps",
+            "severity": "High",
+            "date": "2026-07-01",
+        }
+        resp = client.post(
+            "/add-symptom",
+            headers={"Content-Type": "application/json"},
+            json=payload,
+        )
+        assert resp.status_code == 401
+
+    def test_add_symptom_rejects_invalid_token(self, client, monkeypatch):
+        """POST /add-symptom with an invalid/expired token returns 401."""
+        import app as app_module
+
+        def _reject(_token):
+            raise Exception("invalid token")
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        monkeypatch.setattr(app_module.auth, "verify_id_token", _reject)
+        payload = {"type": "Cramps", "severity": "High", "date": "2026-07-01"}
+        resp = client.post(
+            "/add-symptom",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer bad.token",
+            },
+            json=payload,
+        )
+        assert resp.status_code == 401
+
+    def test_get_symptoms_requires_token(self, client, monkeypatch):
+        """GET /symptoms with no token returns 401 in production, even when a uid
+        query parameter is supplied (the pre-fix unauthenticated attack vector)."""
+        import app as app_module
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        resp = client.get("/symptoms?uid=victim_user")
+        assert resp.status_code == 401
+
+    def test_get_symptoms_rejects_invalid_token(self, client, monkeypatch):
+        """GET /symptoms with an invalid/expired token returns 401."""
+        import app as app_module
+
+        def _reject(_token):
+            raise Exception("invalid token")
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        monkeypatch.setattr(app_module.auth, "verify_id_token", _reject)
+        resp = client.get(
+            "/symptoms?uid=victim_user",
+            headers={"Authorization": "Bearer bad.token"},
+        )
+        assert resp.status_code == 401
+
+
+class TestInsightsAuthorization:
+    """/insights must require a verified token and ignore any client-supplied uid."""
+
+    def test_insights_requires_token_even_with_query_uid(self, client, monkeypatch):
+        """GET /insights?uid=<victim> with no token returns 401 in production.
+
+        Before the fix this served insights for the query-string uid with no
+        authentication whatsoever.
+        """
+        import app as app_module
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        resp = client.get("/insights?uid=victim_user")
+        assert resp.status_code == 401
+
+    def test_insights_rejects_invalid_token(self, client, monkeypatch):
+        """GET /insights with an invalid/expired token returns 401."""
+        import app as app_module
+
+        def _reject(_token):
+            raise Exception("invalid token")
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        monkeypatch.setattr(app_module.auth, "verify_id_token", _reject)
+        resp = client.get(
+            "/insights?uid=victim_user",
+            headers={"Authorization": "Bearer bad.token"},
+        )
+        assert resp.status_code == 401
+
+    def test_insights_valid_token_ignores_query_uid(self, client, monkeypatch):
+        """With a valid token, /insights authorizes via the token identity and
+        ignores the uid query parameter entirely."""
+        import app as app_module
+
+        monkeypatch.setattr(app_module, "firebase_initialized", True)
+        monkeypatch.setattr(
+            app_module.auth, "verify_id_token", lambda _token: {"uid": "token_user"}
+        )
+        resp = client.get(
+            "/insights?uid=someone_else",
+            headers={"Authorization": "Bearer valid.token"},
+        )
+        assert resp.status_code == 200
+        assert isinstance(resp.get_json(), list)

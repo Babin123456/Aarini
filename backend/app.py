@@ -503,6 +503,7 @@ def delete_cycle(cycle_id):
 
 @app.route("/add-symptom", methods=["POST"])
 @limiter.limit(RATE_LIMITS["add_symptom"])
+@authenticated_user
 @validate_request({
     "type": {"type": "string", "required": True},
     "severity": {"type": "string", "required": True},
@@ -514,7 +515,7 @@ def add_symptom():
     Expected Payload: { uid, type, severity, date }
     """
     data = request.get_json() or {}
-    uid = data.get("uid", "mock_user_123")
+    uid = request.user_id
     symptom_type = data.get("type")
     severity = data.get("severity")  # e.g., Low, Medium, High
     date = data.get("date")
@@ -544,8 +545,9 @@ def add_symptom():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/symptoms", methods=["GET"])
+@authenticated_user
 def get_symptoms():
-    uid = request.args.get("uid", "mock_user_123")
+    uid = request.user_id
     logger.info(f"Retrieving symptoms for user: {uid}")
 
     if not firebase_initialized:
@@ -806,11 +808,12 @@ def _extract_phase_from_context(ctx):
 # ----------------- WELLNESS INSIGHTS ENDPOINTS -----------------
 
 @app.route("/insights", methods=["GET"])
+@authenticated_user
 def get_insights():
     """
     Computes wellness insights based on cycle history.
     """
-    uid = request.args.get("uid", "mock_user_123")
+    uid = request.user_id
     logger.info(f"Computing insights for user: {uid}")
 
     # For MVP, we supply static but highly engaging medical-educational insights.
