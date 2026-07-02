@@ -11,7 +11,9 @@ class TestCreateShareLink:
         assert resp.status_code == 201
         data = resp.get_json()
         assert "token" in data
-        assert len(data["token"]) == 16
+        # Token is a CSPRNG secrets.token_urlsafe(32) value (~43 URL-safe chars).
+        # Assert it carries enough entropy rather than a brittle exact length.
+        assert len(data["token"]) >= 32
         assert "expiresAt" in data
         assert "shareUrl" in data
         assert data["expiresInDays"] == 7

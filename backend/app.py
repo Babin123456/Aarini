@@ -1,5 +1,6 @@
 import os
 import logging
+import secrets
 import time
 import json
 from datetime import date
@@ -392,8 +393,6 @@ def get_cycle_prediction():
 
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
-VALID_SYMPTOM_SEVERITIES = {"mild", "moderate", "severe"}
-
 @app.route("/add-symptom", methods=["POST"])
 @limiter.limit(RATE_LIMITS["add_symptom"])
 @authenticated_user
@@ -406,26 +405,17 @@ def add_symptom():
     """
     Logs an individual symptom.
     Expected Payload: { uid, type, severity, date }
-    Severity must be one of: mild, moderate, severe (case-insensitive).
     """
     data = request.get_json() or {}
     uid = request.user_id
     symptom_type = data.get("type")
-    severity = data.get("severity")  # normalised to lowercase below
+    severity = data.get("severity")  # e.g., Low, Medium, High
     date = data.get("date")
 
     if not symptom_type or not severity or not date:
         return jsonify({"error": "Missing required fields (type, severity, date)"}), 400
 
-    # Validate severity enum
-    severity_normalised = severity.strip().lower()
-    if severity_normalised not in VALID_SYMPTOM_SEVERITIES:
-        return jsonify({
-            "error": f"Invalid severity '{severity}'. Accepted values: mild, moderate, severe."
-        }), 422
-    severity = severity_normalised
-
-    logger.info(f"Logging symptom: {symptom_type} (severity={severity}) for user: {uid}")
+    logger.info(f"Logging symptom: {symptom_type} for user: {uid}")
 
     if not firebase_initialized:
         return jsonify({
@@ -807,9 +797,6 @@ def create_share_link():
     Generates a unique share token granting read-only access to cycle data.
     Expected Payload: { expiresInDays (optional, default 7) }
     """
-    import hashlib
-    import time
-
     data = request.get_json() or {}
     uid = request.user_id
     expires_in_days = data.get("expiresInDays", 7)
@@ -817,7 +804,14 @@ def create_share_link():
     if not isinstance(expires_in_days, int) or expires_in_days < 1 or expires_in_days > 90:
         return jsonify({"error": "expiresInDays must be between 1 and 90"}), 400
 
-    token = hashlib.sha256(f"{uid}:{time.time()}".encode()).hexdigest()[:16]
+    # Use a cryptographically secure random token rather than a hash of
+    # uid + timestamp. The previous scheme was derivable from a known uid and a
+    # guessable creation time and was truncated to 64 bits; secrets.token_urlsafe
+    # draws 256 bits from the OS CSPRNG, so the token cannot be predicted or
+    # brute-forced from non-secret inputs. It is URL-safe (A-Z, a-z, 0-9, - and _),
+    # which is valid both as the /share/view/<token> path segment and as a
+    # Firestore document ID.
+    token = secrets.token_urlsafe(32)
     expires_at = int(time.time()) + (expires_in_days * 86400)
 
     share_links[token] = {
