@@ -219,6 +219,14 @@ export default {
     daysAgo: '{{count}} दिन पहले',
     lastWeek: 'पिछला सप्ताह',
   },
+  dashboard: {
+    greeting: 'नमस्ते, {{name}}',
+    moodTrend: '7-दिन मूड',
+    todayMeds: 'आज की दवाइयां',
+    logMood: 'मूड लॉग',
+    logSymptom: 'लक्षण लॉग',
+    streaks: 'स्ट्रीक',
+  },
   medication: {
     title: 'दवाइयां',
     add: 'दवाई जोड़ें',
