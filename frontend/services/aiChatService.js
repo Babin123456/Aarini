@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { saveChatHistory, loadChatHistory, clearChatHistory } from './chatHistoryService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 const MAX_HISTORY = 10;
@@ -10,6 +11,17 @@ export class AiChatService {
     this.uid = uid;
     this.history = [];
     this.lastActivityAt = Date.now();
+    this._loaded = false;
+  }
+
+  async _ensureLoaded() {
+    if (this._loaded) return;
+    this.history = await loadChatHistory(this.uid);
+    this._loaded = true;
+  }
+
+  async _persist() {
+    await saveChatHistory(this.uid, this.history);
   }
 
   _getHeaders() {
@@ -36,9 +48,11 @@ export class AiChatService {
 
   clearHistory() {
     this.history = [];
+    clearChatHistory();
   }
 
   async sendMessage(message) {
+    await this._ensureLoaded();
     this._checkSessionTimeout();
     this._addToHistory('user', message);
 
@@ -56,6 +70,7 @@ export class AiChatService {
 
       const data = await response.json();
       this._addToHistory('model', data.response);
+      await this._persist();
       return data;
     } catch (err) {
       this.history.pop();
@@ -64,6 +79,7 @@ export class AiChatService {
   }
 
   async sendMessageStreaming(message, onChunk, onComplete, onError) {
+    await this._ensureLoaded();
     this._checkSessionTimeout();
     this._addToHistory('user', message);
 
@@ -108,6 +124,7 @@ export class AiChatService {
             }
             if (event.done) {
               this._addToHistory('model', event.full_response || fullResponse);
+              await this._persist();
               onComplete({
                 response: event.full_response || fullResponse,
                 disclaimer: event.disclaimer,
@@ -125,6 +142,7 @@ export class AiChatService {
 
       if (fullResponse) {
         this._addToHistory('model', fullResponse);
+        await this._persist();
         onComplete({ response: fullResponse, disclaimer: null, phase: null });
       }
     } catch (err) {
