@@ -390,62 +390,6 @@ def get_cycle_prediction():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/cycle-phase", methods=["GET"])
-@authenticated_user
-def get_cycle_phase():
-    """
-    Returns a slim phase summary for the authenticated user.
-
-    Response (has cycles):
-      { has_cycles, current_phase, cycle_day, next_period_date,
-        days_until_next_period, avg_cycle_length, confidence }
-
-    Response (no cycles logged yet):
-      { has_cycles: false, message }
-
-    Edge case: fewer than 1 logged cycle → 200 with has_cycles=false instead of crashing.
-    """
-    uid = request.user_id
-    logger.info(f"Cycle-phase request for user: {uid}")
-
-    def _build_response(cycles, fallback_length=28):
-        result = predict_cycle(cycles, fallback_cycle_length=fallback_length)
-        if not result["hasHistory"]:
-            return jsonify({
-                "has_cycles": False,
-                "message": "No cycles logged yet. Log at least one period to see your phase prediction.",
-            }), 200
-        today_date = date.today()
-        next_period = parse_date(result["nextPeriodStart"])
-        return jsonify({
-            "has_cycles": True,
-            "current_phase": result["currentPhase"].lower(),
-            "cycle_day": result["cycleDay"],
-            "next_period_date": result["nextPeriodStart"],
-            "days_until_next_period": (next_period - today_date).days,
-            "avg_cycle_length": result["averageCycleLength"],
-            "confidence": result["confidence"],
-        }), 200
-
-    if not firebase_initialized:
-        return _build_response(mock_cycles.get(uid, []))
-
-    try:
-        docs = (
-            db.collection("users")
-            .document(uid)
-            .collection("cycles")
-            .order_by("startDate", direction=firestore.Query.ASCENDING)
-            .stream()
-        )
-        cycles = [doc.to_dict() for doc in docs]
-        profile = db.collection("users").document(uid).get().to_dict() or {}
-        return _build_response(cycles, fallback_length=profile.get("cycleLength", 28))
-    except Exception as e:
-        logger.error(f"Error computing cycle phase: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
 @app.route("/add-symptom", methods=["POST"])
@@ -513,6 +457,82 @@ def get_symptoms():
         return jsonify(symptoms_list), 200
     except Exception as e:
         logger.error(f"Error fetching symptoms: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+mock_symptoms = {}
+
+
+@app.route("/symptoms/<symptom_id>", methods=["PUT"])
+@authenticated_user
+@validate_request({
+    "type": {"type": "string", "required": True},
+    "severity": {"type": "string", "required": True},
+    "date": {"type": "date", "required": True},
+})
+def update_symptom(symptom_id):
+    """Update an existing symptom entry."""
+    data = request.get_json() or {}
+    uid = request.user_id
+    symptom_type = data.get("type")
+    severity = data.get("severity")
+    symptom_date = data.get("date")
+
+    logger.info(f"Updating symptom {symptom_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_symptoms = mock_symptoms.get(uid, [])
+        target = next((s for s in user_symptoms if s.get("id") == symptom_id), None)
+        if not target:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        target["type"] = symptom_type
+        target["severity"] = severity
+        target["date"] = symptom_date
+        return jsonify({
+            "message": "Symptom updated successfully (Mock Mode)",
+            "symptom": target,
+        }), 200
+
+    try:
+        symptom_ref = db.collection("users").document(uid).collection("symptoms").document(symptom_id)
+        doc = symptom_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        symptom_ref.update({
+            "type": symptom_type,
+            "severity": severity,
+            "date": symptom_date,
+        })
+        return jsonify({"message": "Symptom updated"}), 200
+    except Exception as e:
+        logger.error(f"Error updating symptom: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/symptoms/<symptom_id>", methods=["DELETE"])
+@authenticated_user
+def delete_symptom(symptom_id):
+    """Permanently remove a symptom entry."""
+    uid = request.user_id
+    logger.info(f"Deleting symptom {symptom_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_symptoms = mock_symptoms.get(uid, [])
+        original_len = len(user_symptoms)
+        mock_symptoms[uid] = [s for s in user_symptoms if s.get("id") != symptom_id]
+        if len(mock_symptoms[uid]) == original_len:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        return jsonify({"message": "Symptom deleted successfully (Mock Mode)"}), 200
+
+    try:
+        symptom_ref = db.collection("users").document(uid).collection("symptoms").document(symptom_id)
+        doc = symptom_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Symptom entry not found"}), 404
+        symptom_ref.delete()
+        return jsonify({"message": "Symptom deleted"}), 200
+    except Exception as e:
+        logger.error(f"Error deleting symptom: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
