@@ -501,6 +501,8 @@ def delete_cycle(cycle_id):
 
 # ----------------- MOOD & SYMPTOM ENDPOINTS -----------------
 
+VALID_SYMPTOM_SEVERITIES = {"mild", "moderate", "severe"}
+
 @app.route("/add-symptom", methods=["POST"])
 @limiter.limit(RATE_LIMITS["add_symptom"])
 @validate_request({
@@ -512,17 +514,26 @@ def add_symptom():
     """
     Logs an individual symptom.
     Expected Payload: { uid, type, severity, date }
+    Severity must be one of: mild, moderate, severe (case-insensitive).
     """
     data = request.get_json() or {}
     uid = data.get("uid", "mock_user_123")
     symptom_type = data.get("type")
-    severity = data.get("severity")  # e.g., Low, Medium, High
+    severity = data.get("severity")  # normalised to lowercase below
     date = data.get("date")
 
     if not symptom_type or not severity or not date:
         return jsonify({"error": "Missing required fields (type, severity, date)"}), 400
 
-    logger.info(f"Logging symptom: {symptom_type} for user: {uid}")
+    # Validate severity enum
+    severity_normalised = severity.strip().lower()
+    if severity_normalised not in VALID_SYMPTOM_SEVERITIES:
+        return jsonify({
+            "error": f"Invalid severity '{severity}'. Accepted values: mild, moderate, severe."
+        }), 422
+    severity = severity_normalised
+
+    logger.info(f"Logging symptom: {symptom_type} (severity={severity}) for user: {uid}")
 
     if not firebase_initialized:
         return jsonify({
