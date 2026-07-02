@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useNetwork } from '../context/NetworkContext';
 import {
   dateInRange, parseLocalDate, predictCycleLocally, toDateKey,
 } from '../utils/cyclePrediction';
@@ -36,6 +37,7 @@ export const CycleTrackerScreen = () => {
   const { user, userToken, logout } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  const { isOnline } = useNetwork();
   const navigation = useNavigation();
   const { colors, typography, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -87,6 +89,12 @@ export const CycleTrackerScreen = () => {
     AsyncStorage.getItem('predictionNotificationsEnabled')
       .then((value) => setNotificationsEnabled(value === 'true'));
   }, [loadCycles]);
+
+  useEffect(() => {
+    if (isOnline && syncStatus !== 'synced') {
+      loadCycles();
+    }
+  }, [isOnline]);
 
   useEffect(() => {
     if (notificationsEnabled && prediction?.nextPeriodStart) {
