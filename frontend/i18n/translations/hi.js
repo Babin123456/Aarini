@@ -219,6 +219,17 @@ export default {
     daysAgo: '{{count}} दिन पहले',
     lastWeek: 'पिछला सप्ताह',
   },
+  profile: {
+    title: 'मेरी प्रोफ़ाइल',
+    editSubtitle: 'अपनी व्यक्तिगत जानकारी देखें और संपादित करें',
+    nameLabel: 'पूरा नाम',
+    ageLabel: 'आयु',
+    cycleLengthLabel: 'औसत चक्र अवधि (दिन)',
+    saveSuccess: 'प्रोफ़ाइल सफलतापूर्वक अपडेट की गई',
+    saveFailed: 'प्रोफ़ाइल अपडेट नहीं हो सकी',
+    deleteTitle: 'खाता हटाएं',
+    deleteConfirm: 'क्या आप वाकई अपना खाता स्थायी रूप से हटाना चाहते हैं?',
+  },
   medication: {
     title: 'दवाइयां',
     add: 'दवाई जोड़ें',

@@ -219,6 +219,17 @@ export default {
     daysAgo: '{{count}} days ago',
     lastWeek: 'Last week',
   },
+  profile: {
+    title: 'My Profile',
+    editSubtitle: 'View and edit your personal information',
+    nameLabel: 'FULL NAME',
+    ageLabel: 'AGE',
+    cycleLengthLabel: 'AVERAGE CYCLE LENGTH (DAYS)',
+    saveSuccess: 'Profile updated successfully',
+    saveFailed: 'Could not update profile',
+    deleteTitle: 'Delete Account',
+    deleteConfirm: 'Are you sure you want to permanently delete your account?',
+  },
   medication: {
     title: 'Medications',
     add: 'Add Medication',
