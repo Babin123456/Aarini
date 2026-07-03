@@ -366,6 +366,31 @@ def get_cycles():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/cycles/<cycle_id>", methods=["GET"])
+@authenticated_user
+def get_cycle(cycle_id):
+    """Retrieve a single cycle entry by its ID."""
+    uid = request.user_id
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        cycle = next((c for c in user_cycles if c.get("id") == cycle_id), None)
+        if not cycle:
+            return jsonify({"error": "Cycle not found"}), 404
+        return jsonify({"cycle": cycle}), 200
+
+    try:
+        doc = db.collection("users").document(uid).collection("cycles").document(cycle_id).get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle not found"}), 404
+        cycle = doc.to_dict()
+        cycle["id"] = doc.id
+        return jsonify({"cycle": cycle}), 200
+    except Exception as e:
+        logger.error(f"Error fetching cycle {cycle_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/cycle-prediction", methods=["GET"])
 @authenticated_user
 def get_cycle_prediction():
