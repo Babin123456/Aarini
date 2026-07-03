@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { saveChatMessage } from './chatHistoryService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 const MAX_HISTORY = 10;
@@ -10,6 +11,14 @@ export class AiChatService {
     this.uid = uid;
     this.history = [];
     this.lastActivityAt = Date.now();
+  }
+
+  async _persistMessage(role, content, response) {
+    try {
+      await saveChatMessage(this.uid, { role, content, response });
+    } catch {
+      // Silently fail - persistence is best-effort
+    }
   }
 
   _getHeaders() {
@@ -41,6 +50,7 @@ export class AiChatService {
   async sendMessage(message) {
     this._checkSessionTimeout();
     this._addToHistory('user', message);
+    await this._persistMessage('user', message);
 
     try {
       const response = await fetch(`${BACKEND_URL}/chat`, {
@@ -56,6 +66,7 @@ export class AiChatService {
 
       const data = await response.json();
       this._addToHistory('model', data.response);
+      await this._persistMessage('assistant', data.response, data);
       return data;
     } catch (err) {
       this.history.pop();
@@ -66,6 +77,7 @@ export class AiChatService {
   async sendMessageStreaming(message, onChunk, onComplete, onError) {
     this._checkSessionTimeout();
     this._addToHistory('user', message);
+    await this._persistMessage('user', message);
 
     try {
       const response = await fetch(`${BACKEND_URL}/chat/stream`, {
@@ -108,6 +120,7 @@ export class AiChatService {
             }
             if (event.done) {
               this._addToHistory('model', event.full_response || fullResponse);
+              await this._persistMessage('assistant', event.full_response || fullResponse, event);
               onComplete({
                 response: event.full_response || fullResponse,
                 disclaimer: event.disclaimer,
@@ -125,6 +138,7 @@ export class AiChatService {
 
       if (fullResponse) {
         this._addToHistory('model', fullResponse);
+        await this._persistMessage('assistant', fullResponse);
         onComplete({ response: fullResponse, disclaimer: null, phase: null });
       }
     } catch (err) {

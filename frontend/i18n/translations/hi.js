@@ -219,6 +219,17 @@ export default {
     daysAgo: '{{count}} दिन पहले',
     lastWeek: 'पिछला सप्ताह',
   },
+  chatHistory: {
+    title: 'चैट इतिहास',
+    noHistory: 'कोई चैट इतिहास नहीं',
+    noHistoryDesc: 'अपना इतिहास यहां देखने के लिए आरिनी के साथ बातचीत शुरू करें।',
+    deleteConfirm: 'यह आपकी सभी चैट वार्तालापों को स्थायी रूप से हटा देगा। यह क्रिया पूर्ववत नहीं की जा सकती।',
+    searchPlaceholder: 'वार्तालाप खोजें...',
+    deleteTitle: 'चैट इतिहास साफ़ करें',
+    clearAll: 'सब साफ़ करें',
+    you: 'आप',
+    assistant: 'आरिनी',
+  },
   medication: {
     title: 'दवाइयां',
     add: 'दवाई जोड़ें',

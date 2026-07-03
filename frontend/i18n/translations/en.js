@@ -219,6 +219,17 @@ export default {
     daysAgo: '{{count}} days ago',
     lastWeek: 'Last week',
   },
+  chatHistory: {
+    title: 'Chat History',
+    noHistory: 'No chat history',
+    noHistoryDesc: 'Start a conversation with Aarini to see your history here.',
+    deleteConfirm: 'This will permanently delete all your chat conversations. This action cannot be undone.',
+    searchPlaceholder: 'Search conversations...',
+    deleteTitle: 'Clear Chat History',
+    clearAll: 'Clear All',
+    you: 'You',
+    assistant: 'Aarini',
+  },
   medication: {
     title: 'Medications',
     add: 'Add Medication',
