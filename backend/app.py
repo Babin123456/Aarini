@@ -13,6 +13,7 @@ from middleware.validation import validate_request
 from middleware.rate_limit import limiter, init_limiter, RATE_LIMITS
 from utils.sanitize import sanitize_for_ai
 from utils.health_context import build_health_context, invalidate_cache
+from utils.errors import NotFoundError, AuthenticationError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -32,6 +33,8 @@ else:
     CORS(app)
 
 init_limiter(app)
+from middleware.error_handler import register_error_handlers
+register_error_handlers(app)
 mock_cycles = {}
 
 # Placeholder for Firebase Admin SDK initialization
@@ -121,7 +124,7 @@ def authenticated_user(handler):
             try:
                 request.user_id = auth.verify_id_token(token)["uid"]
             except Exception:
-                return jsonify({"error": "Invalid or expired authentication token"}), 401
+                raise AuthenticationError("Invalid or expired authentication token")
         else:
             # Development mode keeps data isolated by the mock profile id.
             payload = request.get_json(silent=True) or {}
