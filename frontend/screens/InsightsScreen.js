@@ -19,8 +19,10 @@ import {
   computePredictionAccuracy,
   computeSymptomFrequency,
   computeCycleVariance,
+  computeCycleStability,
   getPhaseAwareTips,
 } from '../utils/analyticsEngine';
+import { calculateCycleQualityScore, analyzeCycleRegularity, analyzeMoodTrendByPhase } from '../utils/patternAnalyzer';
 import {
   computeMoodCycleCorrelation,
   generatePatternSummary,
@@ -121,6 +123,21 @@ export const InsightsScreen = ({ navigation }) => {
   const predictionAccuracy = useMemo(
     () => computePredictionAccuracy(cycles),
     [cycles]
+  );
+
+  const cycleQuality = useMemo(
+    () => calculateCycleQualityScore(cycles, symptoms, moodEntries),
+    [cycles, symptoms, moodEntries]
+  );
+
+  const cycleStability = useMemo(
+    () => computeCycleStability(cycleLengths),
+    [cycleLengths]
+  );
+
+  const phaseMoodAnalysis = useMemo(
+    () => analyzeMoodTrendByPhase(moodEntries, cycles),
+    [moodEntries, cycles]
   );
 
   const prediction = useMemo(
@@ -479,6 +496,30 @@ export const InsightsScreen = ({ navigation }) => {
               )}
             </SectionCard>
 
+            {/* Cycle Quality Score */}
+            {cycleQuality && (
+              <SectionCard
+                icon={<Target size={20} color={colors.primaryDark} />}
+                title={`Wellness Score: ${cycleQuality.score}/100`}
+                subtitle={cycleQuality.interpretation}
+              >
+                <View style={styles.qualityRow}>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.regularity}</Text>
+                    <Text style={styles.qualityLabel}>Regularity</Text>
+                  </View>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.dataCompleteness}%</Text>
+                    <Text style={styles.qualityLabel}>Data completeness</Text>
+                  </View>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.cycleCount}</Text>
+                    <Text style={styles.qualityLabel}>Cycles tracked</Text>
+                  </View>
+                </View>
+              </SectionCard>
+            )}
+
             {/* Phase-aware tips */}
             <SectionCard
               icon={<Lightbulb size={20} color={colors.primaryDark} />}
@@ -715,5 +756,22 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
       color: colors.textMedium,
       flex: 1,
       lineHeight: 18,
+    },
+    qualityRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: spacing.sm,
+    },
+    qualityItem: {
+      alignItems: 'center',
+    },
+    qualityValue: {
+      ...typography.h3,
+      color: colors.primaryDark,
+      marginBottom: 2,
+    },
+    qualityLabel: {
+      ...typography.caption,
+      color: colors.textMedium,
     },
   });
