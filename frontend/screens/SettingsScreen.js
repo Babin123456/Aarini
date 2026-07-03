@@ -3,13 +3,12 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud } from 'lucide-react-native';
+import { ArrowLeft, Download, Share, Globe, Trash2, Archive, UploadCloud } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { exportHealthData, shareExportFile } from '../services/exportService';
 import { createBackup, shareBackupFile, restoreFromBackup } from '../services/backupService';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
@@ -21,24 +20,12 @@ export const SettingsScreen = ({ navigation }) => {
   const { t, language, setLanguage, supportedLanguages } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [exporting, setExporting] = useState(false);
-  const [lastExport, setLastExport] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  const handleExport = async (format) => {
-    setExporting(true);
-    try {
-      const result = await exportHealthData(userToken, user?.uid);
-      setLastExport(result);
-      const filePath = format === 'json' ? result.jsonPath : result.textPath;
-      await shareExportFile(filePath);
-    } catch (err) {
-      Alert.alert(t('common.error'), err.message || t('settings.exportFailed'));
-    } finally {
-      setExporting(false);
-    }
+  const handleExport = () => {
+    navigation.navigate('ExportScreen');
   };
 
   const handleBackup = async () => {
@@ -159,34 +146,11 @@ export const SettingsScreen = ({ navigation }) => {
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.exportButton, styles.exportButtonPrimary]}
-              onPress={() => handleExport('text')}
-              disabled={exporting}
-              accessibilityLabel={t('settings.readableReport')}
+              onPress={() => navigation.navigate('ExportScreen')}
+              accessibilityLabel={t('settings.exportData')}
             >
-              {exporting ? (
-                <ActivityIndicator size="small" color={colors.textOnPrimary} />
-              ) : (
-                <>
-                  <FileText size={18} color={colors.textOnPrimary} />
-                  <Text style={styles.exportButtonTextPrimary}>{t('settings.readableReport')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.exportButton, styles.exportButtonSecondary]}
-              onPress={() => handleExport('json')}
-              disabled={exporting}
-              accessibilityLabel={t('settings.jsonExport')}
-            >
-              {exporting ? (
-                <ActivityIndicator size="small" color={colors.primaryDark} />
-              ) : (
-                <>
-                  <Share size={18} color={colors.primaryDark} />
-                  <Text style={styles.exportButtonTextSecondary}>{t('settings.jsonExport')}</Text>
-                </>
-              )}
+              <Download size={18} color={colors.textOnPrimary} />
+              <Text style={styles.exportButtonTextPrimary}>{t('settings.readableReport')}</Text>
             </TouchableOpacity>
           </View>
 
