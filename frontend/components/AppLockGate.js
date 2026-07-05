@@ -6,9 +6,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  AppState, Animated, Platform,
+  AppState, Animated,
 } from 'react-native';
-import { Lock, Fingerprint, X } from 'lucide-react-native';
+import { Lock, Fingerprint } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import {
@@ -86,8 +86,7 @@ export function AppLockGate({ children }) {
     return () => sub.remove();
   }, [attemptBiometric]);
 
-  const handlePinSubmit = async () => {
-    if (pinInput.length !== 4) return;
+  const handlePinSubmit = useCallback(async () => {
     const valid = await verifyPIN(pinInput);
     if (valid) {
       unlock();
@@ -96,11 +95,13 @@ export function AppLockGate({ children }) {
       setPinInput('');
       setTimeout(() => setPinError(false), 2000);
     }
-  };
+  }, [pinInput, unlock]);
 
   useEffect(() => {
-    if (pinInput.length === 4) handlePinSubmit();
-  }, [pinInput]);
+    if (pinInput.length === 4) {
+      handlePinSubmit();
+    }
+  }, [pinInput.length, handlePinSubmit]);
 
   if (checking) return null;
   if (!locked) return children;
