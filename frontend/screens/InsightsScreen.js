@@ -22,6 +22,10 @@ import {
   getPhaseAwareTips,
 } from '../utils/analyticsEngine';
 import {
+  computeSymptomPhaseCorrelation,
+  generateSymptomPhaseSummary,
+} from '../utils/symptomPhaseCorrelation';
+import {
   computeMoodCycleCorrelation,
   generatePatternSummary,
   PHASE_COLORS,
@@ -141,6 +145,11 @@ export const InsightsScreen = ({ navigation }) => {
   }, [moods]);
 
   const symptomFrequency = useMemo(() => computeSymptomFrequency(symptoms), [symptoms]);
+
+  const symptomPhaseData = useMemo(
+    () => computeSymptomPhaseCorrelation(symptoms, cycles),
+    [symptoms, cycles]
+  );
 
   const moodCycleCorrelation = useMemo(
     () => computeMoodCycleCorrelation(moodEntries, cycles),
@@ -446,6 +455,26 @@ export const InsightsScreen = ({ navigation }) => {
             >
               <SymptomBarChart data={symptomFrequency} />
             </SectionCard>
+
+            {/* Symptom-phase correlation */}
+            {symptomPhaseData && symptomPhaseData.dominantSymptoms.length > 0 && (
+              <SectionCard
+                icon={<Activity size={20} color={colors.accentDark} />}
+                title={t('insights.symptomPhaseTitle')}
+                subtitle={t('insights.symptomPhaseSubtitle', { cycles: symptomPhaseData.cyclesUsed })}
+                isEmpty={false}
+              >
+                {symptomPhaseData.dominantSymptoms.map((item, idx) => (
+                  <View key={idx} style={styles.tipRow}>
+                    <View style={[styles.tipBullet, { backgroundColor: colors.accentDark }]} />
+                    <Text style={styles.tipText}>{generateSymptomPhaseSummary(item)}</Text>
+                  </View>
+                ))}
+                <Text style={styles.caption}>
+                  {t('insights.symptomPhaseCaption', { count: symptomPhaseData.totalMapped })}
+                </Text>
+              </SectionCard>
+            )}
 
             {/* Prediction accuracy */}
             <SectionCard

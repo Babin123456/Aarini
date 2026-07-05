@@ -11,6 +11,17 @@ export class AiChatService {
     this.uid = uid;
     this.history = [];
     this.lastActivityAt = Date.now();
+    this._loaded = false;
+  }
+
+  async _ensureLoaded() {
+    if (this._loaded) return;
+    this.history = await loadChatHistory(this.uid);
+    this._loaded = true;
+  }
+
+  async _persist() {
+    await saveChatHistory(this.uid, this.history);
   }
 
   async _persistMessage(role, content, response) {
@@ -45,9 +56,11 @@ export class AiChatService {
 
   clearHistory() {
     this.history = [];
+    clearChatHistory();
   }
 
   async sendMessage(message) {
+    await this._ensureLoaded();
     this._checkSessionTimeout();
     this._addToHistory('user', message);
     await this._persistMessage('user', message);
@@ -75,6 +88,7 @@ export class AiChatService {
   }
 
   async sendMessageStreaming(message, onChunk, onComplete, onError) {
+    await this._ensureLoaded();
     this._checkSessionTimeout();
     this._addToHistory('user', message);
     await this._persistMessage('user', message);

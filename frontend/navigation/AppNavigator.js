@@ -20,6 +20,7 @@ import { ChatHistoryScreen } from '../screens/ChatHistoryScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { NotificationPrefsScreen } from '../screens/NotificationPrefsScreen';
 import { MedicationScreen } from '../screens/MedicationScreen';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +88,7 @@ const AppStack = ({ initialRoute = 'Tabs' }) => (
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
     <Stack.Screen name="Medication" component={MedicationScreen} />
+    <Stack.Screen name="Achievements" component={AchievementsScreen} />
     <Stack.Screen name="Share" component={ShareScreen} />
     <Stack.Screen name="ChatHistory" component={ChatHistoryScreen} />
   </Stack.Navigator>
