@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
+from prediction_feedback import get_prediction_feedback
 from middleware.validation import validate_request
 from middleware.rate_limit import limiter, init_limiter, RATE_LIMITS
 from utils.sanitize import sanitize_for_ai
