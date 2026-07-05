@@ -6,14 +6,17 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { AppNavigator } from './navigation/AppNavigator';
 import { ThemeToggle } from './components/ThemeToggle';
+import { AppLockGate } from './components/AppLockGate';
 
 const AppContent = () => {
   const { isDark } = useTheme();
 
   return (
     <AuthProvider>
-      <AppNavigator />
-      <ThemeToggle />
+      <AppLockGate>
+        <AppNavigator />
+        <ThemeToggle />
+      </AppLockGate>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </AuthProvider>
   );
