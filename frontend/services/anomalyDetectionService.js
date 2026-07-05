@@ -129,15 +129,17 @@ function checkSymptomSeverity(symptoms) {
 
 function checkCycleIrregularity(cycles) {
   if (!cycles || cycles.length < 3) return null;
-  const lengths = cycles
-    .filter(c => c.startDate && c.endDate)
-    .map(c => {
-      const start = new Date(c.startDate);
-      const end = new Date(c.endDate);
-      return Math.round((end - start) / (1000 * 60 * 60 * 24));
-    })
-    .filter(l => l > 0 && l < 100);
-  if (lengths.length < 3) return null;
+  const starts = cycles
+    .filter(c => c.startDate)
+    .map(c => new Date(c.startDate))
+    .sort((a, b) => a - b);
+  if (starts.length < 3) return null;
+  const lengths = [];
+  for (let i = 1; i < starts.length; i++) {
+    const days = Math.round((starts[i] - starts[i - 1]) / (1000 * 60 * 60 * 24));
+    if (days > 0 && days < 100) lengths.push(days);
+  }
+  if (lengths.length < 2) return null;
   const avg = lengths.slice(0, -1).reduce((a, b) => a + b, 0) / (lengths.length - 1);
   const latest = lengths[lengths.length - 1];
   const deviation = Math.abs(latest - avg);
