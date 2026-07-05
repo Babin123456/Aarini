@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 from cycle_prediction import parse_date, predict_cycle
+from prediction_feedback import get_prediction_feedback
 from middleware.validation import validate_request
 from middleware.rate_limit import limiter, init_limiter, RATE_LIMITS
 from utils.sanitize import sanitize_for_ai
@@ -388,6 +389,31 @@ def get_cycle_prediction():
         ), 200
     except Exception as e:
         logger.error(f"Error predicting cycle: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/prediction-feedback", methods=["GET"])
+@authenticated_user
+def prediction_feedback():
+    """Returns prediction accuracy history and adaptive bias correction."""
+    uid = request.user_id
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        return jsonify(get_prediction_feedback(user_cycles)), 200
+
+    try:
+        docs = (
+            db.collection("users")
+            .document(uid)
+            .collection("cycles")
+            .order_by("startDate")
+            .stream()
+        )
+        cycles = [doc.to_dict() for doc in docs]
+        return jsonify(get_prediction_feedback(cycles)), 200
+    except Exception as e:
+        logger.error(f"Error computing prediction feedback: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
