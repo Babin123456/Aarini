@@ -222,6 +222,14 @@ export default {
     daysAgo: '{{count}} दिन पहले',
     lastWeek: 'पिछला सप्ताह',
   },
+  achievements: {
+    title: 'उपलब्धियां',
+    currentStreak: 'दिन की स्ट्रीक',
+    longestStreak: 'सबसे लंबी: {{days}} दिन',
+    thisMonth: 'इस महीने',
+    milestones: 'मील के पत्थर',
+    totalDays: 'कुल लॉग किए गए दिन',
+  },
   medication: {
     title: 'दवाइयां',
     add: 'दवाई जोड़ें',
