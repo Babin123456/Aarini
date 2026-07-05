@@ -20,6 +20,8 @@ import {
 } from '../services/notificationScheduler';
 import { syncCycles } from '../services/syncService';
 import { CyclePhaseBadge } from '../components/CyclePhaseBadge';
+import { HealthAlertCard } from '../components/HealthAlertCard';
+import { detectAnomalies, dismissAlert } from '../services/anomalyDetectionService';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -51,6 +53,7 @@ export const CycleTrackerScreen = () => {
   const [month, setMonth] = useState(new Date());
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [syncStatus, setSyncStatus] = useState('synced');
+  const [healthAlerts, setHealthAlerts] = useState([]);
 
   const headers = useMemo(() => ({
     'Content-Type': 'application/json',
@@ -93,6 +96,13 @@ export const CycleTrackerScreen = () => {
       scheduleAllNotifications(prediction);
     }
   }, [notificationsEnabled, prediction]);
+
+  useEffect(() => {
+    if (!loading && cycles.length > 0) {
+      detectAnomalies({ cycles, prediction, moodEntries: [], medications: [], symptoms: [] })
+        .then(setHealthAlerts);
+    }
+  }, [cycles, prediction, loading]);
 
   const saveCycle = async () => {
     const start = parseLocalDate(startDate);
@@ -159,6 +169,22 @@ export const CycleTrackerScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {healthAlerts.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            {healthAlerts.map((alert) => (
+              <HealthAlertCard
+                key={alert.id}
+                alert={alert}
+                onDismiss={async (id) => {
+                  await dismissAlert(id);
+                  setHealthAlerts((prev) => prev.filter((a) => a.id !== id));
+                }}
+              />
+            ))}
+          </View>
+        )}
+
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>MY CYCLE</Text>
