@@ -11,6 +11,7 @@ import {
 import { ArrowLeft, Plus, Check } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useFormValidation } from '../hooks/useFormValidation';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -38,7 +39,10 @@ export const SymptomLogScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState({});
+  const formValidation = useFormValidation({
+    symptom: (v) => !v ? 'Please select a symptom.' : null,
+    severity: (v) => !v ? 'Please select a severity level.' : null,
+  });
 
   // Form is valid only when a symptom and a valid severity are both chosen
   const isFormValid = Boolean(selected && severity && VALID_SEVERITIES.has(severity));
@@ -67,19 +71,8 @@ export const SymptomLogScreen = ({ navigation }) => {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const submit = async () => {
-    // Client-side validation before hitting the API
-    const newErrors = {};
-    if (!selected) newErrors.symptom = 'Please select a symptom.';
-    if (!severity) {
-      newErrors.severity = 'Please select a severity level.';
-    } else if (!VALID_SEVERITIES.has(severity)) {
-      newErrors.severity = 'Severity must be mild, moderate, or severe.';
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    setErrors({});
+    const isValid = formValidation.validateAll({ symptom: selected, severity });
+    if (!isValid) return;
     setSaving(true);
     try {
       await fetch(`${BACKEND_URL}/add-symptom`, {
