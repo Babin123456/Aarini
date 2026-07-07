@@ -42,7 +42,7 @@ export const LoginScreen = ({ navigation }) => {
     password: (v) => validatePassword(v),
   });
 
-  const handleLogin = useCallback(async () => {
+  const handleLogin = async () => {
     const isValid = validateAll({ email, password });
     if (!isValid) return;
 
