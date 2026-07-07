@@ -222,6 +222,14 @@ export default {
     daysAgo: '{{count}} days ago',
     lastWeek: 'Last week',
   },
+  dashboard: {
+    greeting: 'Hello, {{name}}',
+    moodTrend: '7-day mood',
+    todayMeds: "Today's medications",
+    logMood: 'Log mood',
+    logSymptom: 'Log symptom',
+    streaks: 'Streaks',
+  },
   achievements: {
     title: 'Achievements',
     currentStreak: 'day streak',
