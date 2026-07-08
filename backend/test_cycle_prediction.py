@@ -116,7 +116,21 @@ class CyclePredictionTests(unittest.TestCase):
         self.assertIn("longer", _detect_irregularity([28, 28, 40]))
         self.assertIsNotNone(_detect_irregularity([28, 28, 16]))
         self.assertIn("shorter", _detect_irregularity([28, 28, 16]))
+    def test_empty_cycle_list_handled_gracefully(self):
+        result = predict_cycle([], today="2026-05-10", fallback_cycle_length=28)
+        self.assertEqual(result["averageCycleLength"], 28)
 
+    def test_single_cycle_std_deviation_does_not_crash(self):
+        self.assertEqual(_std_deviation([28]), 0.0)
+
+    def test_overlapping_cycles_are_removed(self):
+        cycles = [
+            {"startDate": "2026-01-01", "endDate": "2026-01-05"},
+            {"startDate": "2026-01-04", "endDate": "2026-01-08"},
+            {"startDate": "2026-02-01", "endDate": "2026-02-05"},
+        ]
+        valid_cycles = normalize_cycles(cycles)
+        self.assertEqual(len(valid_cycles), 2)
 
 if __name__ == "__main__":
     unittest.main()
