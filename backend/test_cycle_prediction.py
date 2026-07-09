@@ -121,7 +121,9 @@ class CyclePredictionTests(unittest.TestCase):
         self.assertEqual(result["averageCycleLength"], 28)
 
     def test_single_cycle_std_deviation_does_not_crash(self):
-        self.assertEqual(_std_deviation([28]), 0.0)
+        value = _std_deviation([28])
+        self.assertEqual(value, 0.0)
+        self.assertIsInstance(value, float)
 
     def test_overlapping_cycles_are_removed(self):
         cycles = [
