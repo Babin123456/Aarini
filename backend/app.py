@@ -810,6 +810,92 @@ def delete_account():
         return jsonify({"error": f"Failed to delete account: {str(e)}"}), 500
 
 
+# ----------------- PROFILE MANAGEMENT ENDPOINTS -----------------
+
+@app.route("/profile", methods=["GET"])
+@authenticated_user
+def get_profile():
+    """Retrieve the authenticated user's profile information."""
+    uid = request.user_id
+    logger.info(f"Fetching profile for user: {uid}")
+
+    if not firebase_initialized:
+        return jsonify({
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "age": 26,
+            "cycleLength": 28,
+            "uid": uid,
+        }), 200
+
+    try:
+        doc = db.collection("users").document(uid).get()
+        if not doc.exists:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = doc.to_dict()
+        profile["uid"] = uid
+        return jsonify(profile), 200
+    except Exception as e:
+        logger.error(f"Error fetching profile: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/profile", methods=["PUT"])
+@authenticated_user
+@validate_request({
+    "name": {"type": "string", "required": False},
+})
+def update_profile():
+    """Update the authenticated user's profile information."""
+    data = request.get_json() or {}
+    uid = request.user_id
+    logger.info(f"Updating profile for user: {uid}")
+
+    allowed_fields = {"name", "age", "cycleLength"}
+    updates = {k: v for k, v in data.items() if k in allowed_fields and v is not None}
+
+    if not updates:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    if "age" in updates:
+        try:
+            age_val = int(updates["age"])
+            if age_val < 10 or age_val > 120:
+                return jsonify({"error": "Age must be between 10 and 120"}), 400
+            updates["age"] = age_val
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid age value"}), 400
+
+    if "cycleLength" in updates:
+        try:
+            cl_val = int(updates["cycleLength"])
+            if cl_val < 15 or cl_val > 60:
+                return jsonify({"error": "Cycle length must be between 15 and 60"}), 400
+            updates["cycleLength"] = cl_val
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid cycle length value"}), 400
+
+    if not firebase_initialized:
+        return jsonify({
+            "message": "Profile updated (Mock Mode)",
+            "profile": updates,
+        }), 200
+
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_ref.update(updates)
+        updated_doc = user_ref.get()
+        profile = updated_doc.to_dict() or {}
+        profile["uid"] = uid
+        return jsonify({
+            "message": "Profile updated successfully",
+            "profile": profile,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating profile: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ----------------- CYCLE SHARING ENDPOINTS -----------------
 
 share_links = {}
