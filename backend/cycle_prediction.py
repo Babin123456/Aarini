@@ -27,17 +27,30 @@ def _clamp(value, lower, upper):
 
 
 def normalize_cycles(cycles):
+    if not cycles:
+        return []
+        
     normalized = []
     for cycle in cycles:
         try:
             start = parse_date(cycle.get("startDate"))
             end = parse_date(cycle.get("endDate")) if cycle.get("endDate") else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             continue
         if end and end < start:
             continue
         normalized.append({"start": start, "end": end})
-    return sorted(normalized, key=lambda cycle: cycle["start"])
+        
+    sorted_cycles = sorted(normalized, key=lambda cycle: cycle["start"])
+    
+    # Filter out overlapping cycles
+    valid_cycles = []
+    for cycle in sorted_cycles:
+        if valid_cycles and valid_cycles[-1]["end"] and cycle["start"] <= valid_cycles[-1]["end"]:
+            continue
+        valid_cycles.append(cycle)
+        
+    return valid_cycles
 
 
 def _weighted_average(values):
@@ -50,7 +63,7 @@ def _weighted_average(values):
 
 def _std_deviation(values):
     if len(values) < 2:
-        return 0
+        return 0.0
     mean = sum(values) / len(values)
     variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
     return math.sqrt(variance)
