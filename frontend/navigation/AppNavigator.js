@@ -20,6 +20,7 @@ import { ExportScreen } from '../screens/ExportScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { NotificationPrefsScreen } from '../screens/NotificationPrefsScreen';
 import { MedicationScreen } from '../screens/MedicationScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +88,8 @@ const AppStack = ({ initialRoute = 'Tabs' }) => (
     <Stack.Screen name="Settings" component={SettingsScreen} />
     <Stack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
     <Stack.Screen name="Medication" component={MedicationScreen} />
+    <Stack.Screen name="HealthDashboard" component={HealthDashboardScreen} />
+    <Stack.Screen name="Achievements" component={AchievementsScreen} />
     <Stack.Screen name="Share" component={ShareScreen} />
     <Stack.Screen name="ExportScreen" component={ExportScreen} />
   </Stack.Navigator>

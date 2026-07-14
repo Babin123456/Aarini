@@ -19,8 +19,14 @@ import {
   computePredictionAccuracy,
   computeSymptomFrequency,
   computeCycleVariance,
+  computeCycleStability,
   getPhaseAwareTips,
 } from '../utils/analyticsEngine';
+import { calculateCycleQualityScore, analyzeCycleRegularity, analyzeMoodTrendByPhase } from '../utils/patternAnalyzer';
+import {
+  computeSymptomPhaseCorrelation,
+  generateSymptomPhaseSummary,
+} from '../utils/symptomPhaseCorrelation';
 import {
   computeMoodCycleCorrelation,
   generatePatternSummary,
@@ -123,6 +129,21 @@ export const InsightsScreen = ({ navigation }) => {
     [cycles]
   );
 
+  const cycleQuality = useMemo(
+    () => calculateCycleQualityScore(cycles, symptoms, moodEntries),
+    [cycles, symptoms, moodEntries]
+  );
+
+  const cycleStability = useMemo(
+    () => computeCycleStability(cycleLengths),
+    [cycleLengths]
+  );
+
+  const phaseMoodAnalysis = useMemo(
+    () => analyzeMoodTrendByPhase(moodEntries, cycles),
+    [moodEntries, cycles]
+  );
+
   const prediction = useMemo(
     () => predictCycleLocally(cycles),
     [cycles]
@@ -141,6 +162,11 @@ export const InsightsScreen = ({ navigation }) => {
   }, [moods]);
 
   const symptomFrequency = useMemo(() => computeSymptomFrequency(symptoms), [symptoms]);
+
+  const symptomPhaseData = useMemo(
+    () => computeSymptomPhaseCorrelation(symptoms, cycles),
+    [symptoms, cycles]
+  );
 
   const moodCycleCorrelation = useMemo(
     () => computeMoodCycleCorrelation(moodEntries, cycles),
@@ -447,6 +473,26 @@ export const InsightsScreen = ({ navigation }) => {
               <SymptomBarChart data={symptomFrequency} />
             </SectionCard>
 
+            {/* Symptom-phase correlation */}
+            {symptomPhaseData && symptomPhaseData.dominantSymptoms.length > 0 && (
+              <SectionCard
+                icon={<Activity size={20} color={colors.accentDark} />}
+                title={t('insights.symptomPhaseTitle')}
+                subtitle={t('insights.symptomPhaseSubtitle', { cycles: symptomPhaseData.cyclesUsed })}
+                isEmpty={false}
+              >
+                {symptomPhaseData.dominantSymptoms.map((item, idx) => (
+                  <View key={idx} style={styles.tipRow}>
+                    <View style={[styles.tipBullet, { backgroundColor: colors.accentDark }]} />
+                    <Text style={styles.tipText}>{generateSymptomPhaseSummary(item)}</Text>
+                  </View>
+                ))}
+                <Text style={styles.caption}>
+                  {t('insights.symptomPhaseCaption', { count: symptomPhaseData.totalMapped })}
+                </Text>
+              </SectionCard>
+            )}
+
             {/* Prediction accuracy */}
             <SectionCard
               icon={<Target size={20} color={colors.primaryDark} />}
@@ -478,6 +524,30 @@ export const InsightsScreen = ({ navigation }) => {
                 </Text>
               )}
             </SectionCard>
+
+            {/* Cycle Quality Score */}
+            {cycleQuality && (
+              <SectionCard
+                icon={<Target size={20} color={colors.primaryDark} />}
+                title={`Wellness Score: ${cycleQuality.score}/100`}
+                subtitle={cycleQuality.interpretation}
+              >
+                <View style={styles.qualityRow}>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.regularity}</Text>
+                    <Text style={styles.qualityLabel}>Regularity</Text>
+                  </View>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.dataCompleteness}%</Text>
+                    <Text style={styles.qualityLabel}>Data completeness</Text>
+                  </View>
+                  <View style={styles.qualityItem}>
+                    <Text style={styles.qualityValue}>{cycleQuality.cycleCount}</Text>
+                    <Text style={styles.qualityLabel}>Cycles tracked</Text>
+                  </View>
+                </View>
+              </SectionCard>
+            )}
 
             {/* Phase-aware tips */}
             <SectionCard
@@ -715,5 +785,22 @@ const createStyles = ({ colors, typography, spacing, borderRadius, shadows }) =>
       color: colors.textMedium,
       flex: 1,
       lineHeight: 18,
+    },
+    qualityRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: spacing.sm,
+    },
+    qualityItem: {
+      alignItems: 'center',
+    },
+    qualityValue: {
+      ...typography.h3,
+      color: colors.primaryDark,
+      marginBottom: 2,
+    },
+    qualityLabel: {
+      ...typography.caption,
+      color: colors.textMedium,
     },
   });

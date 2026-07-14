@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -15,6 +15,8 @@ import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { validateEmail, validatePassword } from '../utils/validators';
 import { Sparkles } from 'lucide-react-native';
 
 export const LoginScreen = ({ navigation }) => {
@@ -26,49 +28,15 @@ export const LoginScreen = ({ navigation }) => {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  // Validation state
-  const [emailError, setEmailError] = useState(null);
-  const [passwordError, setPasswordError] = useState(null);
 
-  // Email Validation regex
-  const validateEmail = (text) => {
-    setEmail(text);
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (text.trim() === '') {
-      setEmailError(t('validation.emailRequired'));
-    } else if (!emailRegex.test(text)) {
-      setEmailError(t('validation.emailInvalid'));
-    } else {
-      setEmailError(null);
-    }
-  };
+  const { errors, handleChange, handleBlur, validateAll, clearFieldError } = useFormValidation({
+    email: (v) => validateEmail(v),
+    password: (v) => validatePassword(v),
+  });
 
-  const validatePassword = (text) => {
-    setPassword(text);
-    if (text.trim() === '') {
-      setPasswordError(t('validation.passwordRequired'));
-    } else if (text.length < 6) {
-      setPasswordError(t('validation.passwordTooShort'));
-    } else {
-      setPasswordError(null);
-    }
-  };
-
-  const handleLogin = async () => {
-    let valid = true;
-    if (!email) {
-      setEmailError(t('validation.emailRequired'));
-      valid = false;
-    }
-    if (!password) {
-      setPasswordError(t('validation.passwordRequired'));
-      valid = false;
-    }
-
-    if (!valid || emailError || passwordError) {
-      return;
-    }
+  const handleLogin = useCallback(async () => {
+    const isValid = validateAll({ email, password });
+    if (!isValid) return;
 
     const success = await login(email, password);
     if (!success) {
@@ -118,20 +86,22 @@ export const LoginScreen = ({ navigation }) => {
               <InputField
                 label={t('login.emailLabel')}
                 value={email}
-                onChangeText={validateEmail}
+                onChangeText={(text) => { setEmail(text); handleChange('email', text); }}
+                onBlur={() => handleBlur('email', email)}
                 placeholder={t('login.emailPlaceholder')}
                 keyboardType="email-address"
-                error={emailError}
+                error={errors.email}
                 containerStyle={styles.formField}
               />
 
               <InputField
                 label={t('login.passwordLabel')}
                 value={password}
-                onChangeText={validatePassword}
+                onChangeText={(text) => { setPassword(text); handleChange('password', text); }}
+                onBlur={() => handleBlur('password', password)}
                 placeholder={t('login.passwordPlaceholder')}
                 secureTextEntry={true}
-                error={passwordError}
+                error={errors.password}
                 containerStyle={styles.formField}
               />
 

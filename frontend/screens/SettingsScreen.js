@@ -161,6 +161,19 @@ export const SettingsScreen = ({ navigation }) => {
           )}
         </View>
 
+        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel={t('profile.title')}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <User size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>{t('profile.title')}</Text>
+              <Text style={styles.cardSubtitle}>{t('profile.editSubtitle')}</Text>
+            </View>
+            <ArrowLeft size={18} color={colors.textLight} style={{ transform: [{ rotate: '180deg' }] }} />
+          </View>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.cardIcon}>
