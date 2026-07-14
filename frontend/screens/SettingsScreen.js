@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert, Switch, TextInput,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud, Lock } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud, Lock, User } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../context/AuthContext';
@@ -205,6 +205,19 @@ export const SettingsScreen = ({ navigation }) => {
             </Text>
           )}
         </View>
+
+        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel={t('profile.title')}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <User size={20} color={colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.h3}>{t('profile.title')}</Text>
+              <Text style={styles.cardSubtitle}>{t('profile.editSubtitle')}</Text>
+            </View>
+            <ArrowLeft size={18} color={colors.textLight} style={{ transform: [{ rotate: '180deg' }] }} />
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
