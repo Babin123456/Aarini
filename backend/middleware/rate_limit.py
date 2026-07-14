@@ -24,9 +24,6 @@ def _get_key():
     user_id = getattr(request, "user_id", None)
     if user_id:
         return f"user:{user_id}"
-    header_id = request.headers.get("X-User-Id")
-    if header_id:
-        return f"user:{header_id}"
     return f"ip:{get_remote_address()}"
 
 
