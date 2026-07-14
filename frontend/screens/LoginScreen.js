@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -18,9 +18,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { validateEmail, validatePassword } from '../utils/validators';
 import { Sparkles } from 'lucide-react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 export const LoginScreen = ({ navigation }) => {
-  const { login, isLoading, error: authError, sessionExpired } = useAuth();
+  const { login, googleLogin, isLoading, error: authError, sessionExpired } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { colors, typography } = theme;
@@ -29,18 +30,51 @@ export const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'dummy_client_id_for_dev', // Configure with actual ID in production
+      offlineAccess: true,
+    });
+  }, []);
+
   const { errors, handleChange, handleBlur, validateAll, clearFieldError } = useFormValidation({
     email: (v) => validateEmail(v),
     password: (v) => validatePassword(v),
   });
 
-  const handleLogin = useCallback(async () => {
+  const handleLogin = async () => {
     const isValid = validateAll({ email, password });
     if (!isValid) return;
 
     const success = await login(email, password);
     if (!success) {
       Alert.alert(t('login.loginError'), authError || t('login.loginFailed'));
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken || userInfo.idToken;
+      if (idToken) {
+        const success = await googleLogin(idToken);
+        if (!success) {
+          Alert.alert(t('login.loginError'), authError || t('login.loginFailed'));
+        }
+      } else {
+        Alert.alert(t('login.loginError'), 'Could not get Google token');
+      }
+    } catch (error) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled the login flow
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // operation (e.g. sign in) is in progress already
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert(t('login.loginError'), 'Play services not available or outdated');
+      } else {
+        Alert.alert(t('login.loginError'), error.message || t('login.loginFailed'));
+      }
     }
   };
 
@@ -120,6 +154,13 @@ export const LoginScreen = ({ navigation }) => {
                 onPress={handleLogin}
                 loading={isLoading}
                 style={styles.submitButton}
+              />
+
+              <Button
+                title="Sign in with Google"
+                onPress={handleGoogleLogin}
+                loading={isLoading}
+                style={[styles.submitButton, { marginTop: 12, backgroundColor: '#DB4437', borderColor: '#DB4437' }]}
               />
 
               <View style={styles.demoBanner} importantForAccessibility="no">
