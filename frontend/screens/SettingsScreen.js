@@ -3,7 +3,9 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud, User } from 'lucide-react-native';
+import { ArrowLeft, Download, FileText, Share, Globe, Trash2, Archive, UploadCloud } from 'lucide-react-native';
+import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../context/AuthContext';
@@ -141,16 +143,11 @@ export const SettingsScreen = ({ navigation }) => {
           <View style={styles.backButton} />
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Download size={20} color={colors.primaryDark} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>{t('settings.exportData')}</Text>
-              <Text style={styles.cardSubtitle}>{t('settings.exportSubtitle')}</Text>
-            </View>
-          </View>
+        <Card
+          icon={<Download size={20} color={colors.primaryDark} />}
+          title={t('settings.exportData')}
+          subtitle={t('settings.exportSubtitle')}
+        >
 
           <Text style={styles.infoText}>
             {t('settings.exportInfo')}
@@ -197,29 +194,11 @@ export const SettingsScreen = ({ navigation }) => {
           )}
         </View>
 
-        <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Profile')} accessibilityRole="button" accessibilityLabel={t('profile.title')}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <User size={20} color={colors.primaryDark} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>{t('profile.title')}</Text>
-              <Text style={styles.cardSubtitle}>{t('profile.editSubtitle')}</Text>
-            </View>
-            <ArrowLeft size={18} color={colors.textLight} style={{ transform: [{ rotate: '180deg' }] }} />
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Globe size={20} color={colors.primaryDark} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>{t('settings.language')}</Text>
-              <Text style={styles.cardSubtitle}>{t('settings.languageSubtitle')}</Text>
-            </View>
-          </View>
+        <Card
+          icon={<Globe size={20} color={colors.primaryDark} />}
+          title={t('settings.language')}
+          subtitle={t('settings.languageSubtitle')}
+        >
 
           <View style={styles.languageOptions}>
             {supportedLanguages.map((lang) => (
@@ -237,18 +216,13 @@ export const SettingsScreen = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Archive size={20} color={colors.primaryDark} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.h3}>{t('settings.backup')}</Text>
-              <Text style={styles.cardSubtitle}>{t('settings.backupSubtitle')}</Text>
-            </View>
-          </View>
+        <Card
+          icon={<Archive size={20} color={colors.primaryDark} />}
+          title={t('settings.backup')}
+          subtitle={t('settings.backupSubtitle')}
+        >
 
           <Text style={styles.infoText}>
             {t('settings.backupInfo')}
@@ -287,12 +261,14 @@ export const SettingsScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </Card>
 
-        <View style={[styles.card, styles.dangerCard]}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIcon, styles.dangerIcon]}>
-              <Trash2 size={20} color={colors.error || '#DC2626'} />
+        <Card
+          variant="danger"
+          icon={<Trash2 size={20} color={colors.error || '#DC2626'} />}
+          title={t('settings.deleteAccount')}
+          subtitle={t('settings.deleteWarning')}
+        >
             </View>
             <View style={{ flex: 1 }}>
               <Text style={typography.h3}>{t('settings.deleteAccount')}</Text>
@@ -320,7 +296,7 @@ export const SettingsScreen = ({ navigation }) => {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
