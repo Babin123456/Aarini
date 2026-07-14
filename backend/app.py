@@ -14,6 +14,7 @@ from middleware.validation import validate_request
 from middleware.rate_limit import limiter, init_limiter, RATE_LIMITS
 from utils.sanitize import sanitize_for_ai
 from utils.health_context import build_health_context, invalidate_cache
+from utils.errors import NotFoundError, AuthenticationError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -33,6 +34,8 @@ else:
     CORS(app)
 
 init_limiter(app)
+from middleware.error_handler import register_error_handlers
+register_error_handlers(app)
 mock_cycles = {}
 
 # Placeholder for Firebase Admin SDK initialization
@@ -122,7 +125,7 @@ def authenticated_user(handler):
             try:
                 request.user_id = auth.verify_id_token(token)["uid"]
             except Exception:
-                return jsonify({"error": "Invalid or expired authentication token"}), 401
+                raise AuthenticationError("Invalid or expired authentication token")
         else:
             # Development mode keeps data isolated by the mock profile id.
             payload = request.get_json(silent=True) or {}
@@ -392,28 +395,78 @@ def get_cycle_prediction():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/prediction-feedback", methods=["GET"])
+@app.route("/cycles/<cycle_id>", methods=["PUT"])
 @authenticated_user
-def prediction_feedback():
-    """Returns prediction accuracy history and adaptive bias correction."""
+@validate_request({
+    "startDate": {"type": "date", "required": False},
+    "endDate": {"type": "date", "required": False},
+})
+def update_cycle(cycle_id):
+    """Update an existing cycle entry."""
+    data = request.get_json() or {}
     uid = request.user_id
+    logger.info(f"Updating cycle {cycle_id} for user: {uid}")
+
+    allowed_fields = {"startDate", "endDate", "flowIntensity", "symptoms", "mood"}
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not updates:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    if "startDate" in updates or "endDate" in updates:
+        start = parse_date(updates.get("startDate", ""))
+        end = parse_date(updates.get("endDate", ""))
+        if end < start:
+            return jsonify({"error": "endDate cannot be before startDate"}), 400
 
     if not firebase_initialized:
         user_cycles = mock_cycles.get(uid, [])
-        return jsonify(get_prediction_feedback(user_cycles)), 200
+        target = next((c for c in user_cycles if c.get("id") == cycle_id), None)
+        if not target:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        target.update(updates)
+        invalidate_cache(uid)
+        return jsonify({"message": "Cycle updated (Mock Mode)", "cycle": target}), 200
 
     try:
-        docs = (
-            db.collection("users")
-            .document(uid)
-            .collection("cycles")
-            .order_by("startDate")
-            .stream()
-        )
-        cycles = [doc.to_dict() for doc in docs]
-        return jsonify(get_prediction_feedback(cycles)), 200
+        cycle_ref = db.collection("users").document(uid).collection("cycles").document(cycle_id)
+        doc = cycle_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        cycle_ref.update(updates)
+        invalidate_cache(uid)
+        return jsonify({"message": "Cycle updated"}), 200
     except Exception as e:
-        logger.error(f"Error computing prediction feedback: {str(e)}")
+        logger.error(f"Error updating cycle: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cycles/<cycle_id>", methods=["DELETE"])
+@authenticated_user
+def delete_cycle(cycle_id):
+    """Permanently remove a cycle entry."""
+    uid = request.user_id
+    logger.info(f"Deleting cycle {cycle_id} for user: {uid}")
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        original_len = len(user_cycles)
+        mock_cycles[uid] = [c for c in user_cycles if c.get("id") != cycle_id]
+        if len(mock_cycles[uid]) == original_len:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        invalidate_cache(uid)
+        return jsonify({"message": "Cycle deleted (Mock Mode)"}), 200
+
+    try:
+        cycle_ref = db.collection("users").document(uid).collection("cycles").document(cycle_id)
+        doc = cycle_ref.get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle entry not found"}), 404
+        cycle_ref.delete()
+        invalidate_cache(uid)
+        return jsonify({"message": "Cycle deleted"}), 200
+    except Exception as e:
+        logger.error(f"Error deleting cycle: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -808,6 +861,92 @@ def delete_account():
     except Exception as e:
         logger.error(f"Account deletion error: {str(e)}")
         return jsonify({"error": f"Failed to delete account: {str(e)}"}), 500
+
+
+# ----------------- PROFILE MANAGEMENT ENDPOINTS -----------------
+
+@app.route("/profile", methods=["GET"])
+@authenticated_user
+def get_profile():
+    """Retrieve the authenticated user's profile information."""
+    uid = request.user_id
+    logger.info(f"Fetching profile for user: {uid}")
+
+    if not firebase_initialized:
+        return jsonify({
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "age": 26,
+            "cycleLength": 28,
+            "uid": uid,
+        }), 200
+
+    try:
+        doc = db.collection("users").document(uid).get()
+        if not doc.exists:
+            return jsonify({"error": "Profile not found"}), 404
+        profile = doc.to_dict()
+        profile["uid"] = uid
+        return jsonify(profile), 200
+    except Exception as e:
+        logger.error(f"Error fetching profile: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/profile", methods=["PUT"])
+@authenticated_user
+@validate_request({
+    "name": {"type": "string", "required": False},
+})
+def update_profile():
+    """Update the authenticated user's profile information."""
+    data = request.get_json() or {}
+    uid = request.user_id
+    logger.info(f"Updating profile for user: {uid}")
+
+    allowed_fields = {"name", "age", "cycleLength"}
+    updates = {k: v for k, v in data.items() if k in allowed_fields and v is not None}
+
+    if not updates:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    if "age" in updates:
+        try:
+            age_val = int(updates["age"])
+            if age_val < 10 or age_val > 120:
+                return jsonify({"error": "Age must be between 10 and 120"}), 400
+            updates["age"] = age_val
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid age value"}), 400
+
+    if "cycleLength" in updates:
+        try:
+            cl_val = int(updates["cycleLength"])
+            if cl_val < 15 or cl_val > 60:
+                return jsonify({"error": "Cycle length must be between 15 and 60"}), 400
+            updates["cycleLength"] = cl_val
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid cycle length value"}), 400
+
+    if not firebase_initialized:
+        return jsonify({
+            "message": "Profile updated (Mock Mode)",
+            "profile": updates,
+        }), 200
+
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_ref.update(updates)
+        updated_doc = user_ref.get()
+        profile = updated_doc.to_dict() or {}
+        profile["uid"] = uid
+        return jsonify({
+            "message": "Profile updated successfully",
+            "profile": profile,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating profile: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 # ----------------- CYCLE SHARING ENDPOINTS -----------------

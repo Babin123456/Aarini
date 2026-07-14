@@ -105,3 +105,34 @@ class TestCyclePrediction:
         assert resp.status_code == 200
         data = resp.get_json()
         assert isinstance(data, dict)
+
+
+class TestUpdateCycle:
+    """PUT /cycles/<id> endpoint tests."""
+
+    def test_update_cycle_not_found(self, client, auth_headers):
+        """Updating a non-existent cycle returns 404."""
+        resp = client.put("/cycles/nonexistent_id", headers=auth_headers, json={"startDate": "2026-07-01"})
+        assert resp.status_code == 404
+
+    def test_update_cycle_invalid_dates(self, client, auth_headers):
+        """Updating with invalid date range returns 400."""
+        resp = client.put("/cycles/some_id", headers=auth_headers, json={
+            "startDate": "2026-07-10",
+            "endDate": "2026-07-05",
+        })
+        assert resp.status_code == 400 or resp.status_code == 404
+
+
+class TestDeleteCycle:
+    """DELETE /cycles/<id> endpoint tests."""
+
+    def test_delete_cycle_not_found(self, client, auth_headers):
+        """Deleting a non-existent cycle returns 404."""
+        resp = client.delete("/cycles/nonexistent_id", headers=auth_headers)
+        assert resp.status_code == 404
+
+    def test_delete_cycle_no_auth(self, client):
+        """Deleting without auth returns 401."""
+        resp = client.delete("/cycles/some_id")
+        assert resp.status_code == 401
