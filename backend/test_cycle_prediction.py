@@ -116,6 +116,7 @@ class CyclePredictionTests(unittest.TestCase):
         self.assertIn("longer", _detect_irregularity([28, 28, 40]))
         self.assertIsNotNone(_detect_irregularity([28, 28, 16]))
         self.assertIn("shorter", _detect_irregularity([28, 28, 16]))
+        
     def test_empty_cycle_list_handled_gracefully(self):
         result = predict_cycle([], today="2026-05-10", fallback_cycle_length=28)
         self.assertEqual(result["averageCycleLength"], 28)
@@ -133,6 +134,25 @@ class CyclePredictionTests(unittest.TestCase):
         ]
         valid_cycles = normalize_cycles(cycles)
         self.assertEqual(len(valid_cycles), 2)
+
+    # 🛠️ NEW TESTS FOR VETERAN ISSUE
+    
+    def test_predict_cycle_with_single_logged_cycle_prevents_zero_division(self):
+        """A single cycle means 0 intervals to average. This ensures predict_cycle doesn't throw a ZeroDivisionError."""
+        cycles = [{"startDate": "2026-05-01", "endDate": "2026-05-05"}]
+        result = predict_cycle(cycles, today="2026-05-10", fallback_cycle_length=28)
+        
+        self.assertEqual(result["averageCycleLength"], 28)
+        self.assertIsNotNone(result["nextPeriodStart"])
+        self.assertEqual(result["nextPeriodStart"], "2026-05-29") # May 1st + 28 days
+
+    def test_predict_cycle_with_zero_logged_cycles_prevents_zero_division(self):
+        """Zero cycles means the user is brand new. This ensures the prediction pipeline survives entirely on fallbacks."""
+        result = predict_cycle([], today="2026-05-10", fallback_cycle_length=28)
+        
+        self.assertEqual(result["averageCycleLength"], 28)
+        self.assertIsNotNone(result["nextPeriodStart"])
+        self.assertEqual(result["nextPeriodStart"], "2026-06-07") # May 10th + 28 days
 
 if __name__ == "__main__":
     unittest.main()

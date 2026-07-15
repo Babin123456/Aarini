@@ -4,6 +4,8 @@ import {
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SkeletonCard } from '../components/SkeletonCard';
+import { SyncStatusBar } from '../components/SyncStatusBar';
+import { EmptyState } from '../components/EmptyState';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Bell, CalendarDays, ChevronLeft, ChevronRight, Droplets, LogOut, Plus, Settings, Sparkles,
@@ -204,14 +206,7 @@ export const CycleTrackerScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {syncStatus !== 'synced' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm, paddingHorizontal: spacing.xs }} accessibilityLiveRegion="polite">
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncStatus === 'offline' ? colors.errorDark : syncStatus === 'pending' ? colors.accentDark : colors.primaryDark }} importantForAccessibility="no" />
-            <Text style={{ fontSize: 12, color: colors.textLight }}>
-              {syncStatus === 'offline' ? 'Offline - changes saved locally' : syncStatus === 'pending' ? 'Some entries pending sync' : 'Syncing...'}
-            </Text>
-          </View>
-        )}
+        <SyncStatusBar status={syncStatus} />
 
         {loading ? (
           <View style={{ paddingTop: spacing.sm }}>
@@ -219,15 +214,17 @@ export const CycleTrackerScreen = () => {
             <SkeletonCard height={140} lines={3} />
           </View>
         ) : !prediction?.hasHistory ? (
-          <View style={styles.heroCard}>
-            <Droplets size={30} color={colors.secondaryDark} />
-            <Text style={[typography.h2, styles.center]}>Start with your latest period</Text>
-            <Text style={[styles.muted, styles.center]}>Log start and end dates to unlock phase and period predictions.</Text>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel="Log period">
-              <Plus size={18} color={colors.white} />
-              <Text style={styles.primaryButtonText}>{t('cycleTracker.logPeriod')}</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon={<Droplets size={30} color={colors.secondaryDark} />}
+            title="Start with your latest period"
+            message="Log start and end dates to unlock phase and period predictions."
+            action={
+              <TouchableOpacity style={styles.primaryButton} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel="Log period">
+                <Plus size={18} color={colors.white} />
+                <Text style={styles.primaryButtonText}>{t('cycleTracker.logPeriod')}</Text>
+              </TouchableOpacity>
+            }
+          />
         ) : (
           <>
             <View style={styles.phaseCard}>
