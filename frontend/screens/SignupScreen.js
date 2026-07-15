@@ -70,7 +70,7 @@ export const SignupScreen = ({ navigation }) => {
     if (!success) {
       Alert.alert('Signup Failed', authError || 'An error occurred during account creation.');
     }
-  };
+  }, [name, email, password, age, cycleLength, signup, step2Validation, authError]);
 
   return (
     <KeyboardAvoidingView 
