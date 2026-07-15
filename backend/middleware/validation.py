@@ -7,9 +7,10 @@ against a schema before the handler runs.
 import re
 from functools import wraps
 from flask import request, jsonify
+from datetime import datetime # 🛠️ FIX: Imported datetime
 
 
-DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+# 🛠️ FIX: Removed the flawed DATE_RE regex
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 
@@ -33,8 +34,13 @@ def _check_field(value, rules, field_name):
             return f"Must be at most {max_len} characters"
 
     elif field_type == "date":
-        if not isinstance(value, str) or not DATE_RE.match(value):
-            return "Must be a valid date (YYYY-MM-DD)"
+        # 🛠️ FIX: Use datetime.strptime to catch impossible dates (like Feb 30th)
+        if not isinstance(value, str):
+            return "Must be a valid calendar date (YYYY-MM-DD)"
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+        except ValueError:
+            return "Must be a valid calendar date (YYYY-MM-DD)"
 
     elif field_type == "email":
         if not isinstance(value, str) or not EMAIL_RE.match(value):
