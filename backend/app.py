@@ -255,6 +255,77 @@ def login():
         "note": "We recommend direct client-side Firebase Auth authentication for maximum mobile capability."
     }), 200
 
+@app.route("/google-login", methods=["POST"])
+@limiter.limit(RATE_LIMITS["login"])
+@validate_request({
+    "idToken": {"type": "string", "required": True}
+})
+def google_login():
+    """
+    Validates Google ID Token using Firebase Admin SDK and ensures a user document exists.
+    Expected Payload: { idToken }
+    """
+    data = request.get_json() or {}
+    id_token = data.get("idToken")
+
+    if not id_token:
+        return jsonify({"error": "Missing idToken"}), 400
+
+    logger.info("Authenticating user via Google Login")
+
+    if not firebase_initialized:
+        # Mock mode fallback
+        return jsonify({
+            "message": "Logged in with Google successfully (Mock Mode)",
+            "token": "mock_google_token_abc123",
+            "user": {
+                "uid": "mock_google_user_123",
+                "name": "Google User",
+                "email": "googleuser@example.com",
+                "cycleLength": 28
+            }
+        }), 200
+
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token.get("uid")
+        email = decoded_token.get("email", "")
+        name = decoded_token.get("name", "Google User")
+
+        # Ensure user profile exists in Firestore
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+
+        if not user_doc.exists:
+            # First time login via Google
+            user_ref.set({
+                "name": name,
+                "email": email,
+                "age": 25, # Default, user can update later
+                "cycleLength": 28, # Default
+                "createdAt": firestore.SERVER_TIMESTAMP,
+                "authProvider": "google"
+            })
+            profile_data = {
+                "uid": uid,
+                "name": name,
+                "email": email,
+                "age": 25,
+                "cycleLength": 28
+            }
+        else:
+            profile_data = user_doc.to_dict()
+            profile_data["uid"] = uid
+
+        return jsonify({
+            "message": "Google Login successful",
+            "token": id_token,
+            "user": profile_data
+        }), 200
+    except Exception as e:
+        logger.error(f"Google Login error: {str(e)}")
+        return jsonify({"error": "Invalid or expired Google ID Token"}), 401
+
 
 # ----------------- PERIOD TRACKING ENDPOINTS -----------------
 
@@ -367,6 +438,31 @@ def get_cycles():
         }), 200
     except Exception as e:
         logger.error(f"Error getting cycles: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cycles/<cycle_id>", methods=["GET"])
+@authenticated_user
+def get_cycle(cycle_id):
+    """Retrieve a single cycle entry by its ID."""
+    uid = request.user_id
+
+    if not firebase_initialized:
+        user_cycles = mock_cycles.get(uid, [])
+        cycle = next((c for c in user_cycles if c.get("id") == cycle_id), None)
+        if not cycle:
+            return jsonify({"error": "Cycle not found"}), 404
+        return jsonify({"cycle": cycle}), 200
+
+    try:
+        doc = db.collection("users").document(uid).collection("cycles").document(cycle_id).get()
+        if not doc.exists:
+            return jsonify({"error": "Cycle not found"}), 404
+        cycle = doc.to_dict()
+        cycle["id"] = doc.id
+        return jsonify({"cycle": cycle}), 200
+    except Exception as e:
+        logger.error(f"Error fetching cycle {cycle_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 

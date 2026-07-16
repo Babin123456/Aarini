@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { ArrowLeft, Plus, Check } from 'lucide-react-native';
+import { ArrowLeft, Plus, Check, Activity } from 'lucide-react-native';
+import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useFormValidation } from '../hooks/useFormValidation';
@@ -112,11 +114,10 @@ export const SymptomLogScreen = ({ navigation }) => {
         </View>
 
         {/* Symptom selector */}
-        <View style={styles.card}>
-          <Text style={typography.h3}>What are you experiencing?</Text>
-          <Text style={styles.subtitle}>
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
+        <Card
+          title="What are you experiencing?"
+          subtitle={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+        >
           <View style={styles.chipGrid}>
             {SYMPTOMS.map((s) => {
               const isActive = selected === s;
@@ -136,15 +137,14 @@ export const SymptomLogScreen = ({ navigation }) => {
               );
             })}
           </View>
-          {errors.symptom ? (
+            {errors.symptom ? (
             <Text style={styles.errorText} accessibilityRole="alert">{errors.symptom}</Text>
           ) : null}
-        </View>
+        </Card>
 
         {/* Severity */}
         {selected && (
-          <View style={styles.card}>
-            <Text style={typography.h3}>Severity</Text>
+          <Card title="Severity">
             <View style={styles.severityRow}>
               {SEVERITIES.map((s) => {
                 const isActive = severity === s;
@@ -194,16 +194,19 @@ export const SymptomLogScreen = ({ navigation }) => {
                 </>
               )}
             </TouchableOpacity>
-          </View>
+          </Card>
         )}
 
         {/* History */}
-        <View style={styles.card}>
-          <Text style={[typography.h3, { marginBottom: spacing.md }]}>Recent Symptoms</Text>
+        <Card title="Recent Symptoms">
           {loading ? (
             <ActivityIndicator color={colors.primaryDark} />
           ) : history.length === 0 ? (
-            <Text style={styles.emptyText}>No symptoms logged yet. Select one above to start tracking.</Text>
+            <EmptyState
+              compact
+              icon={<Activity size={24} color={colors.textLight} />}
+              message="No symptoms logged yet. Select one above to start tracking."
+            />
           ) : (
             history.map((entry, i) => (
               <View key={`${entry.date}-${entry.type}-${i}`} style={styles.historyRow}>
@@ -215,7 +218,7 @@ export const SymptomLogScreen = ({ navigation }) => {
               </View>
             ))
           )}
-        </View>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );

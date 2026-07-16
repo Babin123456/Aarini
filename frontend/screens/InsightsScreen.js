@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SkeletonCard } from '../components/SkeletonCard';
+import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
 import Svg, { Rect, Polyline, Circle, Line, G } from 'react-native-svg';
 import { ArrowLeft, TrendingUp, Smile, Droplet, Activity, Target, Lightbulb, Heart } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
@@ -176,22 +178,13 @@ export const InsightsScreen = ({ navigation }) => {
   // ---- Sub-components -----------------------------------------------------
 
   const SectionCard = ({ icon, title, subtitle, children, isEmpty, emptyText }) => (
-    <View style={styles.card} accessibilityLabel={title}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardIcon} importantForAccessibility="no">{icon}</View>
-        <View style={styles.flex}>
-          <Text style={[typography.h3, styles.cardTitle]}>{title}</Text>
-          {subtitle ? <Text style={styles.cardSubtitle}>{subtitle}</Text> : null}
-        </View>
-      </View>
+    <Card icon={icon} title={title} subtitle={subtitle}>
       {isEmpty ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{emptyText}</Text>
-        </View>
+        <EmptyState compact message={emptyText} />
       ) : (
         children
       )}
-    </View>
+    </Card>
   );
 
   // Simple SVG line chart for the mood trend (values 1–5).
