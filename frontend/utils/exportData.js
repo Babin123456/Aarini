@@ -3,7 +3,28 @@ import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+export function normalizeData(obj) {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj === 'string') {
+    return obj.trim() === '' ? null : obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeData);
+  }
+  if (typeof obj === 'object') {
+    const normalized = {};
+    for (const key of Object.keys(obj)) {
+      normalized[key] = normalizeData(obj[key]);
+    }
+    return normalized;
+  }
+  return obj;
+}
+
 export async function gatherAllData(userId, apiFetch) {
+  // NOTE: We skip structural validation on the retrieved data here since it is gathered
+  // from our own trusted local storage and backend endpoints, which already validate
+  // the data at ingestion time.
   const results = {};
 
   const localCycles = JSON.parse((await AsyncStorage.getItem(`cycles:${userId || 'local'}`)) || '[]');
@@ -36,7 +57,8 @@ export async function gatherAllData(userId, apiFetch) {
   results.exportGeneratedAt = new Date().toISOString();
   results.appVersion = '1.0.0';
 
-  return results;
+  // Normalize empty strings vs null to prevent inconsistencies downstream
+  return normalizeData(results);
 }
 
 export function formatReadableReport(data) {
@@ -52,8 +74,14 @@ export function formatReadableReport(data) {
   if (cycles && cycles.length > 0) {
     lines.push('--- CYCLE HISTORY ---');
     cycles.forEach((c, i) => {
-      const dur = Math.ceil((new Date(c.endDate) - new Date(c.startDate)) / 86400000) + 1;
-      lines.push(`  ${i + 1}. ${c.startDate} to ${c.endDate} (${dur} days)${c.flowIntensity ? ` - Flow: ${c.flowIntensity}` : ''}`);
+      if (c.startDate) {
+        if (c.endDate) {
+          const dur = Math.ceil((new Date(c.endDate) - new Date(c.startDate)) / 86400000) + 1;
+          lines.push(`  ${i + 1}. ${c.startDate} to ${c.endDate} (${dur} days)${c.flowIntensity ? ` - Flow: ${c.flowIntensity}` : ''}`);
+        } else {
+          lines.push(`  ${i + 1}. ${c.startDate} to ongoing${c.flowIntensity ? ` - Flow: ${c.flowIntensity}` : ''}`);
+        }
+      }
     });
     lines.push('');
   }
