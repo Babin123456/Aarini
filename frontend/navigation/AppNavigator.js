@@ -20,7 +20,7 @@ import { ExportScreen } from '../screens/ExportScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { NotificationPrefsScreen } from '../screens/NotificationPrefsScreen';
 import { MedicationScreen } from '../screens/MedicationScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+import { CycleDetailScreen } from '../screens/CycleDetailScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
